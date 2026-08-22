@@ -33,6 +33,51 @@ function attachmentHref(attachmentUrl?: string) {
   if (!attachmentUrl) return undefined;
   return attachmentUrl.startsWith("http") ? attachmentUrl : `${API_URL}${attachmentUrl}`;
 }
+async function downloadAttachment(attachmentUrl?: string) {
+  if (!attachmentUrl) return;
+
+  const raw = sessionStorage.getItem("campusos_session");
+  let token: string | undefined;
+
+  try {
+    token = raw ? (JSON.parse(raw) as { token?: string }).token : undefined;
+  } catch {
+    token = undefined;
+  }
+
+  const url = attachmentUrl.startsWith("http")
+    ? attachmentUrl
+    : `${API_URL}${attachmentUrl}`;
+
+  const response = await fetch(url, {
+    headers: token
+      ? {
+          Authorization: `Bearer ${token}`,
+        }
+      : {},
+  });
+
+  if (response.status === 401) {
+    alert("Your session has expired. Please log in again.");
+    return;
+  }
+
+  if (!response.ok) {
+    throw new Error(`Download failed: ${response.status}`);
+  }
+
+  const blob = await response.blob();
+  const blobUrl = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = blobUrl;
+  link.download = attachmentUrl.split("/").pop() || "attachment";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  URL.revokeObjectURL(blobUrl);
+}
 
 function CreateNotice({ onCreated }: { onCreated: () => void }) {
   const { session } = useAuth();
@@ -492,15 +537,14 @@ export default function NoticesPage() {
                     <h2 className="mt-3 text-lg font-semibold text-ink">{notice.title}</h2>
                     <p className="mt-2 text-sm leading-6 text-ink-soft">{notice.description}</p>
                     {notice.attachmentUrl ? (
-                      <a
-                        href={attachmentHref(notice.attachmentUrl)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-2 inline-block text-xs font-medium text-brass hover:text-brass-light"
-                      >
-                        Download attachment
-                      </a>
-                    ) : null}
+  <button
+    type="button"
+    onClick={() => downloadAttachment(notice.attachmentUrl)}
+    className="mt-2 inline-block text-xs font-medium text-brass hover:text-brass-light"
+  >
+    Download attachment
+  </button>
+) : null}
                     <p className="mt-4 text-xs text-slate">
                       Posted by {notice.createdBy} · {formatDateTime(notice.createdAt)}
                     </p>

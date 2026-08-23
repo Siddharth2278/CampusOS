@@ -2,12 +2,11 @@ package com.campusos.backend.service;
 
 import com.campusos.backend.entity.User;
 import com.campusos.backend.repository.UserRepository;
-import jakarta.mail.internet.MimeMessage;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
 
 import java.security.SecureRandom;
 import java.time.Instant;
@@ -17,18 +16,22 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class PasswordResetService {
     private final UserRepository userRepository;
-    private final JavaMailSender mailSender;
     private final BCryptPasswordEncoder passwordEncoder;
     private final SecureRandom random = new SecureRandom();
     private final Map<String, OtpEntry> otps = new ConcurrentHashMap<>();
+    private final RestClient restClient = RestClient.create();
 
+    // Reused as the verified Brevo sender address - same Gmail address as before,
+    // just no longer connected to via SMTP (Render blocks that outbound).
     @Value("${spring.mail.username:}")
-    private String smtpUsername;
+    private String senderEmail;
 
-    public PasswordResetService(UserRepository userRepository, JavaMailSender mailSender,
+    @Value("${BREVO_API_KEY:}")
+    private String brevoApiKey;
+
+    public PasswordResetService(UserRepository userRepository,
                                 BCryptPasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
-        this.mailSender = mailSender;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -37,33 +40,44 @@ public class PasswordResetService {
         User user = userRepository.findByEmail(normalized)
                 .orElseThrow(() -> new IllegalArgumentException("No account is registered with this email."));
 
-        if (smtpUsername == null || smtpUsername.isBlank()) {
+        if (brevoApiKey == null || brevoApiKey.isBlank()) {
             throw new IllegalStateException(
-                    "SMTP is not configured. Set MAIL_USERNAME and MAIL_PASSWORD in the backend environment.");
+                    "Email sending is not configured. Set BREVO_API_KEY in the backend environment.");
+        }
+        if (senderEmail == null || senderEmail.isBlank()) {
+            throw new IllegalStateException(
+                    "Sender email is not configured. Set MAIL_USERNAME in the backend environment.");
         }
 
         String otp = String.format("%06d", random.nextInt(1_000_000));
         otps.put(normalized, new OtpEntry(otp, Instant.now().plusSeconds(600), 0));
 
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom(smtpUsername);
-            helper.setTo(user.getEmail());
-            helper.setSubject("CampusOS Password Reset OTP");
-            helper.setText(
+            Map<String, Object> body = Map.of(
+                    "sender", Map.of("name", "CampusOS", "email", senderEmail),
+                    "to", java.util.List.of(Map.of("email", user.getEmail())),
+                    "subject", "CampusOS Password Reset OTP",
+                    "htmlContent",
                     "<h2>CampusOS Password Reset</h2>" +
                     "<p>Your one-time verification code is:</p>" +
                     "<p style='font-size:28px;font-weight:bold;letter-spacing:8px'>" + otp + "</p>" +
-                    "<p>This OTP expires in 10 minutes. If you did not request a password reset, ignore this email.</p>",
-                    true);
-            mailSender.send(message);
+                    "<p>This OTP expires in 10 minutes. If you did not request a password reset, ignore this email.</p>"
+            );
+
+            restClient.post()
+                    .uri("https://api.brevo.com/v3/smtp/email")
+                    .header("api-key", brevoApiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .toBodilessEntity();
+
         } catch (Exception e) {
             otps.remove(normalized);
-            String detail = e.getMessage() == null ? "Unknown SMTP error." : e.getMessage();
+            String detail = e.getMessage() == null ? "Unknown error." : e.getMessage();
             throw new IllegalStateException(
-                    "Unable to send OTP email through SMTP. Check MAIL_USERNAME, MAIL_PASSWORD, "
-                            + "Gmail App Password/2-Step Verification, and SMTP connectivity. Details: " + detail);
+                    "Unable to send OTP email. Check BREVO_API_KEY and that the sender email is "
+                            + "verified in Brevo. Details: " + detail);
         }
     }
 

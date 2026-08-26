@@ -33,6 +33,8 @@ public class NoticeResponse {
 
     private String attachmentUrl;
 
+    private String attachmentFileName;
+
     private Long createdByUserId;
 
     private String createdBy;

@@ -165,6 +165,7 @@ export interface Assignment {
   teacherId: number;
   teacherName: string;
   attachmentUrl?: string;
+  attachmentFileName?: string;
   createdAt: string;
 }
 
@@ -313,6 +314,7 @@ export interface Notice {
   semester?: number;
   targetUserName?: string;
   attachmentUrl?: string;
+  attachmentFileName?: string;
   createdByUserId?: number;
   createdBy: string;
   createdAt: string;

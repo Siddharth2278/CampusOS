@@ -41,7 +41,7 @@ private final UserRepository userRepository;
 private final StudentRepository studentRepository;
 private final TeacherRepository teacherRepository;
 private final NotificationService notificationService;
-private final Path uploadDirectory = Paths.get("uploads/notices");
+private final FileStorageService fileStorageService;
 
 public NoticeService(
             NoticeRepository noticeRepository,
@@ -49,7 +49,8 @@ public NoticeService(
             UserRepository userRepository,
             StudentRepository studentRepository,
             TeacherRepository teacherRepository,                                
-            NotificationService notificationService) {
+            NotificationService notificationService,
+            FileStorageService fileStorageService) {
 
         this.noticeRepository = noticeRepository;
         this.departmentRepository = departmentRepository;
@@ -57,6 +58,7 @@ public NoticeService(
         this.studentRepository = studentRepository;
         this.teacherRepository = teacherRepository;
         this.notificationService = notificationService;
+        this.fileStorageService = fileStorageService;
     }
 
     // ===========================
@@ -154,13 +156,10 @@ public NoticeService(
 
         if (attachment != null && !attachment.isEmpty()) {
             try {
-                Files.createDirectories(uploadDirectory);
-                String originalFileName = attachment.getOriginalFilename();
-                String fileName = UUID.randomUUID() + "_" + originalFileName;
-                Path filePath = uploadDirectory.resolve(fileName);
-                Files.copy(attachment.getInputStream(), filePath);
-                notice.setAttachmentUrl("/api/notices/attachment/" + fileName);
-            } catch (IOException e) {
+                String url = fileStorageService.upload(attachment, "campusos/notices");
+                notice.setAttachmentUrl(url);
+                notice.setAttachmentFileName(attachment.getOriginalFilename());
+            } catch (Exception e) {
                 throw new RuntimeException("Failed to save attachment.", e);
             }
         }
@@ -304,13 +303,10 @@ return "Notice created successfully."; }
 
         if (attachment != null && !attachment.isEmpty()) {
             try {
-                Files.createDirectories(uploadDirectory);
-                String originalFileName = attachment.getOriginalFilename();
-                String fileName = UUID.randomUUID() + "_" + originalFileName;
-                Path filePath = uploadDirectory.resolve(fileName);
-                Files.copy(attachment.getInputStream(), filePath);
-                notice.setAttachmentUrl("/api/notices/attachment/" + fileName);
-            } catch (IOException e) {
+                String url = fileStorageService.upload(attachment, "campusos/notices");
+                notice.setAttachmentUrl(url);
+                notice.setAttachmentFileName(attachment.getOriginalFilename());
+            } catch (Exception e) {
                 throw new RuntimeException("Failed to save attachment.", e);
             }
         }
@@ -436,6 +432,7 @@ return "Notice created successfully."; }
                                 + notice.getTargetUser().getLastName()
                         : null,
                 notice.getAttachmentUrl(),
+                notice.getAttachmentFileName(),
                 notice.getCreatedBy() != null ? notice.getCreatedBy().getId() : null,
                 notice.getCreatedBy() != null
                         ? notice.getCreatedBy().getFirstName() + " "

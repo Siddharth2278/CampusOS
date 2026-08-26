@@ -42,8 +42,7 @@ public class AssignmentService {
     private final AssignmentSubmissionRepository submissionRepository;
     private final FacultyAssignmentRepository facultyAssignmentRepository;
     private final UserRepository userRepository;
-    private final Path uploadDirectory =
-        Paths.get("uploads/assignments");
+    private final FileStorageService fileStorageService;
 
   public AssignmentService(
         AssignmentRepository assignmentRepository,
@@ -51,7 +50,8 @@ public class AssignmentService {
         TeacherRepository teacherRepository,
         StudentRepository studentRepository,
         AssignmentSubmissionRepository submissionRepository,
-        NotificationService notificationService, FacultyAssignmentRepository facultyAssignmentRepository, UserRepository userRepository) {
+        NotificationService notificationService, FacultyAssignmentRepository facultyAssignmentRepository, UserRepository userRepository,
+        FileStorageService fileStorageService) {
 
     this.assignmentRepository = assignmentRepository;
     this.subjectRepository = subjectRepository;
@@ -61,6 +61,7 @@ public class AssignmentService {
     this.notificationService = notificationService;
     this.facultyAssignmentRepository = facultyAssignmentRepository;
     this.userRepository = userRepository;
+    this.fileStorageService = fileStorageService;
 }
 
 public AssignmentResponseDto createAssignment(
@@ -131,26 +132,11 @@ public AssignmentResponseDto createAssignment(
   if (attachment != null && !attachment.isEmpty()) {
 
     try {
+        String url = fileStorageService.upload(attachment, "campusos/assignments");
+        assignment.setAttachmentUrl(url);
+        assignment.setAttachmentFileName(attachment.getOriginalFilename());
 
-        Files.createDirectories(uploadDirectory);
-
-        String originalFileName =
-                attachment.getOriginalFilename();
-
-        String fileName =
-                UUID.randomUUID() + "_" + originalFileName;
-
-        Path filePath =
-                uploadDirectory.resolve(fileName);
-
-        Files.copy(
-                attachment.getInputStream(),
-                filePath);
-
-        assignment.setAttachmentUrl(
-        "/api/assignments/attachment/" + fileName);
-
-    } catch (IOException e) {
+    } catch (Exception e) {
 
         throw new RuntimeException(
                 "Failed to save attachment.", e);
@@ -248,6 +234,8 @@ return mapToResponse(saved);
                         + assignment.getTeacher().getLastName(),
 
                 assignment.getAttachmentUrl(),
+
+                assignment.getAttachmentFileName(),
 
                 assignment.getCreatedAt());
     }

@@ -30,5 +30,7 @@ public class AssignmentResponseDto {
     // Optional
     private String attachmentUrl;
 
+    private String attachmentFileName;
+
     private LocalDateTime createdAt;
 }

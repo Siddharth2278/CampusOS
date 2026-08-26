@@ -56,6 +56,8 @@ public class Notice {
     // Optional attachment (e.g. a circular, form, or PDF)
     private String attachmentUrl;
 
+    private String attachmentFileName;
+
     // User who created the notice
     @ManyToOne
     @JoinColumn(name = "created_by")

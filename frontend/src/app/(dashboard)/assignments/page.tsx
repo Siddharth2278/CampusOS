@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api, ApiError, API_URL } from "@/lib/api";
+import { downloadAttachment } from "@/lib/downloadAttachment";
 import { useAuth } from "@/context/AuthContext";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -401,18 +402,20 @@ function StudentAssignments({ studentId, departmentId, semester }: {
                   <p className="mt-2 text-sm text-ink-soft">{assignment.description}</p>
                 ) : null}
                 {assignment.attachmentUrl ? (
-                  <a
-                    href={
-                      assignment.attachmentUrl.startsWith("http")
-                        ? assignment.attachmentUrl
-                        : `${API_URL}${assignment.attachmentUrl}`
+                  <button
+                    type="button"
+                    onClick={() =>
+                      downloadAttachment(
+                        assignment.attachmentUrl!.startsWith("http")
+                          ? assignment.attachmentUrl!
+                          : `${API_URL}${assignment.attachmentUrl}`,
+                        assignment.attachmentFileName || "attachment"
+                      )
                     }
-                    target="_blank"
-                    rel="noreferrer"
                     className="mt-2 inline-block text-xs font-medium text-brass hover:text-brass"
                   >
                     Download attachment
-                  </a>
+                  </button>
                 ) : null}
               </div>
             );

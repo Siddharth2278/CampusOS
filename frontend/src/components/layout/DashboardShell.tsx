@@ -319,16 +319,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           {/* Desktop top bar */}
           <header className="campus-topbar sticky top-0 z-20 hidden h-[76px] items-center justify-between border-b border-hairline px-8 lg:flex">
             <div className="relative">
-              <div className="mb-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-[.24em] text-slate">
-                <span className="text-brass">/</span>
-                <span>CampusOS</span>
-                <span className="opacity-40">/</span>
-                <span>{pathname === "/dashboard" ? "01" : "02"}</span>
-              </div>
-              <h1 className="font-display font-black tracking-[-.05em] text-ink">{pageTitle(pathname)}</h1>
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-soft">CampusOS</p>
+              <h1 className="font-display font-bold tracking-tight text-ink">{pageTitle(pathname)}</h1>
             </div>
             <div className="flex items-center gap-3">
-              <Link href="/notifications" className="relative rounded-xl border border-[#2a3953] bg-[#0e1a2d] p-2.5 text-[#9aa7ba] transition hover:border-brass/30 hover:bg-brass-tint hover:text-brass" aria-label="Notifications" title="Notifications">
+              <Link href="/notifications" className="relative rounded-xl border border-hairline bg-surface p-2.5 text-ink-soft transition hover:border-brass/30 hover:bg-brass-tint hover:text-brass" aria-label="Notifications" title="Notifications">
                 <BellIcon />
                 {unread > 0 ? (
                   <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-maroon px-1 text-[9px] font-bold text-white">
@@ -340,7 +335,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                 <button
                   type="button"
                   onClick={() => setAccountOpen((v) => !v)}
-                  className="group flex items-center gap-3 rounded-2xl border border-[#2a3953] bg-[#0e1a2d] px-2.5 py-2 shadow-[0_10px_30px_rgba(0,0,0,.15)] transition hover:border-brass/30 hover:bg-[#122039]"
+                  className="group flex items-center gap-3 rounded-2xl border border-hairline bg-surface px-2.5 py-2 shadow-sm transition hover:border-brass/30 hover:bg-brass-tint"
                   aria-expanded={accountOpen}
                   aria-label="Open profile menu"
                 >
@@ -356,20 +351,20 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                   </svg>
                 </button>
                 {accountOpen ? (
-                  <div className="absolute right-0 top-[calc(100%+10px)] z-50 w-64 overflow-hidden rounded-2xl border border-[#2a3953] bg-[#0e1a2d]/98 p-2 shadow-[0_24px_70px_rgba(0,0,0,.45)] backdrop-blur-xl">
-                    <div className="border-b border-[#23314a] px-3 py-3">
+                  <div className="absolute right-0 top-[calc(100%+10px)] z-50 w-64 overflow-hidden rounded-2xl border border-hairline bg-surface p-2 shadow-lg">
+                    <div className="border-b border-hairline px-3 py-3">
                       <p className="truncate text-sm font-semibold text-ink">{session?.displayName ?? session?.email}</p>
                       <p className="mt-0.5 truncate text-xs text-slate">{session?.email}</p>
                     </div>
-                    <Link href="/profile" onClick={() => setAccountOpen(false)} className="mt-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[#a6b1c3] hover:bg-[#171f3d] hover:text-[#c9c3ff]">
+                    <Link href="/profile" onClick={() => setAccountOpen(false)} className="mt-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-ink-soft hover:bg-slate-tint hover:text-ink">
                       <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-tint">◎</span>
                       My Profile
                     </Link>
-                    <Link href="/settings/password" onClick={() => setAccountOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[#a6b1c3] hover:bg-[#171f3d] hover:text-[#c9c3ff]">
+                    <Link href="/settings/password" onClick={() => setAccountOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-ink-soft hover:bg-slate-tint hover:text-ink">
                       <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-tint">⌁</span>
                       Change password
                     </Link>
-                    <button onClick={logout} className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-[#ff8ea1] hover:bg-[#351820]">
+                    <button onClick={logout} className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-maroon hover:bg-maroon-tint">
                       <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-maroon-tint">↗</span>
                       Sign out
                     </button>
@@ -409,40 +404,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             <div className="pointer-events-none fixed right-[5%] top-[18%] z-0 h-28 w-28 rounded-full bg-brass/8 blur-3xl animate-[campus-float_7s_ease-in-out_infinite]" />
             <div className="relative z-10">{children}</div>
 
-            <footer className="relative z-10 mt-12 border-t border-[#232822] px-1 pb-8 pt-8 sm:mt-16 sm:pt-10">
-              <div className="flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
-                <div className="max-w-xl">
-                  <p className="text-[10px] font-black uppercase tracking-[.24em] text-slate">
-                    / campusOS
-                  </p>
-                  <h2 className="mt-3 text-2xl font-black tracking-[-.045em] text-ink sm:text-3xl">
-                    One campus. One workspace.
-                  </h2>
-                  <p className="mt-2 max-w-lg text-sm leading-6 text-slate">
-                    A modern academic management platform for students, teachers, HODs and principals.
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[.14em]">
-                  <Link href="/dashboard" className="rounded-[4px] border border-[#282f27] px-3 py-2 text-slate transition hover:-translate-y-0.5 hover:border-brass/40 hover:text-ink">
-                    Home
-                  </Link>
-                  <Link href="/notices" className="rounded-[4px] border border-[#282f27] px-3 py-2 text-slate transition hover:-translate-y-0.5 hover:border-brass/40 hover:text-ink">
-                    Notices
-                  </Link>
-                  <Link href="/calendar" className="rounded-[4px] border border-[#282f27] px-3 py-2 text-slate transition hover:-translate-y-0.5 hover:border-brass/40 hover:text-ink">
-                    Calendar
-                  </Link>
-                  <Link href="/profile" className="rounded-[4px] border border-[#282f27] px-3 py-2 text-slate transition hover:-translate-y-0.5 hover:border-brass/40 hover:text-ink">
-                    Profile
-                  </Link>
-                </div>
-              </div>
-
-              <div className="mt-8 flex flex-col gap-3 border-t border-[#1d211c] pt-5 text-[10px] uppercase tracking-[.12em] text-[#626a5f] sm:flex-row sm:items-center sm:justify-between">
-                <span>© {new Date().getFullYear()} CampusOS</span>
+            <footer className="relative z-10 mt-12 border-t border-hairline px-1 pb-8 pt-6 sm:mt-16">
+              <div className="flex flex-col gap-3 text-xs text-ink-soft sm:flex-row sm:items-center sm:justify-between">
+                <span>&copy; {new Date().getFullYear()} CampusOS</span>
                 <span className="inline-flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 animate-[campus-pulse_2.4s_ease-in-out_infinite] rounded-full bg-moss" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-moss" />
                   System operational
                 </span>
               </div>

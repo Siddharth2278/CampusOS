@@ -38,6 +38,8 @@ public class Assignment {
     // Optional attachment
     private String attachmentUrl;
 
+    private String attachmentFileName;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 }

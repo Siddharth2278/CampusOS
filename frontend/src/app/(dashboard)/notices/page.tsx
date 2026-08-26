@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api, ApiError, API_URL } from "@/lib/api";
+import { downloadAttachment } from "@/lib/downloadAttachment";
 import { useAuth } from "@/context/AuthContext";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -32,51 +33,6 @@ function allowedReceiverRoles(role?: string): ReceiverRole[] {
 function attachmentHref(attachmentUrl?: string) {
   if (!attachmentUrl) return undefined;
   return attachmentUrl.startsWith("http") ? attachmentUrl : `${API_URL}${attachmentUrl}`;
-}
-async function downloadAttachment(attachmentUrl?: string) {
-  if (!attachmentUrl) return;
-
-  const raw = sessionStorage.getItem("campusos_session");
-  let token: string | undefined;
-
-  try {
-    token = raw ? (JSON.parse(raw) as { token?: string }).token : undefined;
-  } catch {
-    token = undefined;
-  }
-
-  const url = attachmentUrl.startsWith("http")
-    ? attachmentUrl
-    : `${API_URL}${attachmentUrl}`;
-
-  const response = await fetch(url, {
-    headers: token
-      ? {
-          Authorization: `Bearer ${token}`,
-        }
-      : {},
-  });
-
-  if (response.status === 401) {
-    alert("Your session has expired. Please log in again.");
-    return;
-  }
-
-  if (!response.ok) {
-    throw new Error(`Download failed: ${response.status}`);
-  }
-
-  const blob = await response.blob();
-  const blobUrl = URL.createObjectURL(blob);
-
-  const link = document.createElement("a");
-  link.href = blobUrl;
-  link.download = attachmentUrl.split("/").pop() || "attachment";
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-
-  URL.revokeObjectURL(blobUrl);
 }
 
 function CreateNotice({ onCreated }: { onCreated: () => void }) {
@@ -173,7 +129,7 @@ function CreateNotice({ onCreated }: { onCreated: () => void }) {
                 onClick={() => setMode_("broadcast")}
                 className={
                   mode === "broadcast"
-                    ? "rounded-md bg-gradient-to-r from-[#7c6cff] to-[#5b54d6] px-3 py-1.5 text-sm font-bold text-white shadow-[0_8px_22px_rgba(99,91,255,.25)]"
+                    ? "rounded-md bg-brass px-3 py-1.5 text-sm font-bold text-white shadow-sm"
                     : "rounded-md px-3 py-1.5 text-sm font-medium text-slate"
                 }
               >
@@ -184,7 +140,7 @@ function CreateNotice({ onCreated }: { onCreated: () => void }) {
                 onClick={() => setMode_("specific")}
                 className={
                   mode === "specific"
-                    ? "rounded-md bg-gradient-to-r from-[#7c6cff] to-[#5b54d6] px-3 py-1.5 text-sm font-bold text-white shadow-[0_8px_22px_rgba(99,91,255,.25)]"
+                    ? "rounded-md bg-brass px-3 py-1.5 text-sm font-bold text-white shadow-sm"
                     : "rounded-md px-3 py-1.5 text-sm font-medium text-slate"
                 }
               >
@@ -537,14 +493,19 @@ export default function NoticesPage() {
                     <h2 className="mt-3 text-lg font-semibold text-ink">{notice.title}</h2>
                     <p className="mt-2 text-sm leading-6 text-ink-soft">{notice.description}</p>
                     {notice.attachmentUrl ? (
-  <button
-    type="button"
-    onClick={() => downloadAttachment(notice.attachmentUrl)}
-    className="mt-2 inline-block text-xs font-medium text-brass hover:text-brass-light"
-  >
-    Download attachment
-  </button>
-) : null}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          downloadAttachment(
+                            attachmentHref(notice.attachmentUrl)!,
+                            notice.attachmentFileName || "attachment"
+                          )
+                        }
+                        className="mt-2 inline-block text-xs font-medium text-brass hover:text-brass-light"
+                      >
+                        Download attachment
+                      </button>
+                    ) : null}
                     <p className="mt-4 text-xs text-slate">
                       Posted by {notice.createdBy} · {formatDateTime(notice.createdAt)}
                     </p>

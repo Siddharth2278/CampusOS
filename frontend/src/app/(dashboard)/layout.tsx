@@ -6,5 +6,12 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <AuthGuard><DataRefreshListener />{children}</AuthGuard>;
+  return (
+    <div className="campus-ambient-bg">
+      <AuthGuard>
+        <DataRefreshListener />
+        {children}
+      </AuthGuard>
+    </div>
+  );
 }

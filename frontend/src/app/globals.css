@@ -279,3 +279,103 @@ select option { background: #ffffff; color: #0f172a; }
     transition: none !important;
   }
 }
+
+/* Safe Ambient Background Wrapper */
+.campus-ambient-bg {
+  position: relative;
+  min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
+  background-color: var(--color-paper);
+  
+  /* The drifting grid */
+  background-image: 
+    linear-gradient(to right, rgba(15, 23, 42, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.03) 1px, transparent 1px);
+  background-size: 56px 56px;
+  animation: grid-drift 40s linear infinite;
+}
+
+/* Floating Ambient Light Orbs */
+.campus-ambient-bg::before,
+.campus-ambient-bg::after {
+  background-color: var(--color-paper, #f8fafc);
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(212, 160, 23, 0.03) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(30, 41, 59, 0.02) 0px, transparent 50%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+/* Top Left Brass (Blue) Glow */
+.campus-ambient-bg::before {
+  top: -15%;
+  left: -10%;
+  width: 50vw;
+  height: 50vw;
+  background: rgba(37, 99, 235, 0.08);
+  animation: orb-drift 15s ease-in-out infinite alternate;
+}
+
+/* Bottom Right Moss (Green) Glow */
+.campus-ambient-bg::after {
+  bottom: -15%;
+  right: -10%;
+  width: 60vw;
+  height: 60vw;
+  background: rgba(4, 120, 87, 0.05);
+  animation: orb-drift 20s ease-in-out infinite alternate-reverse;
+}
+body {
+  min-height: 100vh;
+  margin: 0;
+  color: var(--foreground);
+  
+  /* 1. Base color */
+  background-color: var(--color-paper);
+  
+  /* 2. The subtle moving grid pattern */
+  background-image: 
+    linear-gradient(to right, rgba(15, 23, 42, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.03) 1px, transparent 1px);
+  background-size: 56px 56px;
+  animation: grid-drift 40s linear infinite;
+  
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  
+  /* Required for the floating orbs */
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* 3. Floating Ambient Light Orbs */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(120px);
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Top Left Blue (Brass) Glow */
+body::before {
+  top: -15%;
+  left: -10%;
+  width: 50vw;
+  height: 50vw;
+  background: rgba(37, 99, 235, 0.08); /* Very soft blue */
+  animation: orb-drift 15s ease-in-out infinite alternate;
+}
+
+/* Bottom Right Green (Moss) Glow */
+body::after {
+  bottom: -15%;
+  right: -10%;
+  width: 60vw;
+  height: 60vw;
+  background: rgba(4, 120, 87, 0.05); /* Very soft green */
+  animation: orb-drift 20s ease-in-out infinite alternate-reverse;
+}

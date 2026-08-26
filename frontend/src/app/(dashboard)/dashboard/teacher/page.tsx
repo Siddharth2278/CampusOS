@@ -5,7 +5,6 @@ import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { CalendarList } from "@/components/dashboard/CalendarList";
 import { TimetableList } from "@/components/dashboard/TimetableList";
-import { Card, StatCard } from "@/components/ui/Card";
 import type { TeacherDashboard } from "@/lib/types";
 
 export default function TeacherDashboardPage() {
@@ -29,13 +28,17 @@ export default function TeacherDashboardPage() {
   }, [session?.role]);
 
   if (loading) {
-    return <p className="text-sm text-slate">Loading dashboard...</p>;
+    return (
+      <div className="flex justify-center py-12">
+         <div className="animate-breathe text-brass font-medium">Loading dashboard...</div>
+      </div>
+    );
   }
 
   if (error) {
     return (
-      <div className="rounded-xl border border-gold/30 bg-gold-tint p-6 text-sm text-gold">
-        {error}
+      <div className="campus-card bg-brick-tint border-brick/30 p-6">
+        <p className="text-sm font-medium text-brick">{error}</p>
       </div>
     );
   }
@@ -43,42 +46,50 @@ export default function TeacherDashboardPage() {
   if (!dashboard) return null;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-semibold text-ink">
-          Welcome, {dashboard.teacherName}
-        </h1>
-        <p className="mt-1 text-sm text-slate">
-          {session?.role === "HOD" ? "Head of Department dashboard" : "Faculty dashboard"}
+    <div className="campus-page space-y-8 max-w-7xl mx-auto py-6">
+      <header className="mb-6">
+        <h1 className="campus-gradient-text pb-1">Welcome, {dashboard.teacherName}</h1>
+        <p className="mt-2 text-ink-soft text-base">
+          {session?.role === "HOD" ? "Head of Department Workspace" : "Faculty Workspace"}
         </p>
-      </div>
+      </header>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <StatCard
-          label="Pending leave requests"
-          value={dashboard.pendingStudentLeaves}
-          hint="Awaiting review"
-        />
-        <StatCard
-          label="Classes today"
-          value={dashboard.todaySchedule.length}
-        />
-        <StatCard
-          label="Upcoming events"
-          value={dashboard.academicCalendar.length}
-        />
+      {/* KPI Stats Grid */}
+      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="campus-card p-6 bg-gradient-to-br from-white to-slate-tint/50">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate mb-2">Pending Leaves</p>
+          <p className="text-3xl font-bold text-ink">{dashboard.pendingStudentLeaves}</p>
+          <p className="text-xs text-amber-600 font-medium mt-2">Awaiting your review</p>
+        </div>
+        <div className="campus-card p-6 bg-gradient-to-br from-white to-slate-tint/50">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate mb-2">Classes Today</p>
+          <p className="text-3xl font-bold text-ink">{dashboard.todaySchedule.length}</p>
+        </div>
+        <div className="campus-card p-6 bg-gradient-to-br from-white to-slate-tint/50">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate mb-2">Upcoming Events</p>
+          <p className="text-3xl font-bold text-ink">{dashboard.academicCalendar.length}</p>
+        </div>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <Card title="Today's schedule" description="Your teaching sessions today.">
+        <div className="campus-card p-6 lg:p-8 campus-reveal">
+          <div className="mb-6 border-b border-hairline pb-4">
+            <h2 className="text-xl font-semibold text-ink">Today's Schedule</h2>
+            <p className="mt-1 text-sm text-ink-soft">Your teaching sessions for today.</p>
+          </div>
           <TimetableList
             entries={dashboard.todaySchedule}
             emptyMessage="No teaching sessions scheduled for today."
           />
-        </Card>
-        <Card title="Academic calendar" description="Department events and deadlines.">
+        </div>
+        
+        <div className="campus-card p-6 lg:p-8 campus-reveal">
+          <div className="mb-6 border-b border-hairline pb-4">
+            <h2 className="text-xl font-semibold text-ink">Academic Calendar</h2>
+            <p className="mt-1 text-sm text-ink-soft">Department events and deadlines.</p>
+          </div>
           <CalendarList entries={dashboard.academicCalendar} />
-        </Card>
+        </div>
       </div>
     </div>
   );

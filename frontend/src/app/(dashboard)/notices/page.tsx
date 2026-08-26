@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { api, ApiError, API_URL } from "@/lib/api";
 import { downloadAttachment } from "@/lib/downloadAttachment";
 import { useAuth } from "@/context/AuthContext";
-import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
@@ -20,9 +19,6 @@ import type {
 const PRIORITIES: NoticePriority[] = ["NORMAL", "IMPORTANT", "URGENT"];
 const SEMESTERS = [1, 2, 3, 4, 5, 6];
 
-// Per the role spec, notices flow one level down for Teacher; HOD can
-// broadcast to Students or Teachers in any department; the Principal can
-// broadcast to any group, or (below) target one person.
 function allowedReceiverRoles(role?: string): ReceiverRole[] {
   if (role === "TEACHER") return ["STUDENT"];
   if (role === "HOD") return ["STUDENT", "TEACHER"];
@@ -39,8 +35,6 @@ function CreateNotice({ onCreated }: { onCreated: () => void }) {
   const { session } = useAuth();
   const isPrincipal = session?.role === "PRINCIPAL";
   const receiverOptions = allowedReceiverRoles(session?.role);
-  // Teacher stays scoped to their own department; HOD can reach other
-  // departments too, so their department field isn't locked.
   const lockedDepartmentId = session?.role === "TEACHER" ? session.departmentId : undefined;
 
   const [mode, setMode] = useState<"broadcast" | "specific">("broadcast");
@@ -120,46 +114,49 @@ function CreateNotice({ onCreated }: { onCreated: () => void }) {
   }
 
   return (
-      <Card title="Publish a notice">
-        <div className="space-y-4">
+      <div className="campus-card p-6 lg:p-8">
+        <h2 className="mb-6">Publish a Notice</h2>
+        <div className="space-y-5">
           {isPrincipal ? (
-            <div className="inline-flex w-fit gap-1 rounded-lg bg-slate-tint p-1">
+            <div className="inline-flex w-fit gap-1 rounded-lg bg-slate-tint p-1 border border-hairline">
               <button
                 type="button"
                 onClick={() => setMode_("broadcast")}
                 className={
                   mode === "broadcast"
-                    ? "rounded-md bg-brass px-3 py-1.5 text-sm font-bold text-white shadow-sm"
-                    : "rounded-md px-3 py-1.5 text-sm font-medium text-slate"
+                    ? "rounded-md bg-white px-4 py-2 text-sm font-semibold text-ink shadow-sm border border-hairline"
+                    : "rounded-md px-4 py-2 text-sm font-medium text-slate hover:text-ink"
                 }
               >
-                Broadcast to a group
+                Broadcast
               </button>
               <button
                 type="button"
                 onClick={() => setMode_("specific")}
                 className={
                   mode === "specific"
-                    ? "rounded-md bg-brass px-3 py-1.5 text-sm font-bold text-white shadow-sm"
-                    : "rounded-md px-3 py-1.5 text-sm font-medium text-slate"
+                    ? "rounded-md bg-white px-4 py-2 text-sm font-semibold text-ink shadow-sm border border-hairline"
+                    : "rounded-md px-4 py-2 text-sm font-medium text-slate hover:text-ink"
                 }
               >
-                Specific teacher or HOD
+                Specific Person
               </button>
             </div>
           ) : null}
 
           <Input
             label="Title"
+            placeholder="E.g., Mid-Term Examination Schedule"
             value={form.title}
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
           />
           <Textarea
             label="Description"
+            placeholder="Write the details of the notice here..."
             value={form.description}
             onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
           />
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-5 sm:grid-cols-2">
             <Select
               label="Audience"
               value={form.receiverRole}
@@ -196,7 +193,7 @@ function CreateNotice({ onCreated }: { onCreated: () => void }) {
 
           {mode === "specific" ? (
             <Select
-              label={form.receiverRole === "HOD" ? "Which HOD" : "Which teacher"}
+              label={form.receiverRole === "HOD" ? "Which HOD" : "Which Teacher"}
               value={form.targetUserId}
               onChange={(e) => setForm((f) => ({ ...f, targetUserId: e.target.value }))}
             >
@@ -212,14 +209,14 @@ function CreateNotice({ onCreated }: { onCreated: () => void }) {
               ))}
             </Select>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-5 sm:grid-cols-2">
               <Select
                 label="Department"
                 value={form.departmentId}
                 onChange={(e) => setForm((f) => ({ ...f, departmentId: e.target.value }))}
                 disabled={!!lockedDepartmentId}
               >
-                <option value="">All departments</option>
+                <option value="">All Departments</option>
                 {(lockedDepartmentId
                   ? departments.filter((dep) => dep.id === lockedDepartmentId)
                   : departments
@@ -234,7 +231,7 @@ function CreateNotice({ onCreated }: { onCreated: () => void }) {
                 value={form.semester}
                 onChange={(e) => setForm((f) => ({ ...f, semester: e.target.value }))}
               >
-                <option value="">All semesters</option>
+                <option value="">All Semesters</option>
                 {SEMESTERS.map((sem) => (
                   <option key={sem} value={sem}>
                     Semester {sem}
@@ -245,31 +242,32 @@ function CreateNotice({ onCreated }: { onCreated: () => void }) {
           )}
 
           <div>
-            <label className="block text-sm font-medium text-ink-soft">
-              Attachment (optional)
-            </label>
+            <label className="block mb-1.5">Attachment (optional)</label>
             <input
               type="file"
-              className="mt-1.5 block w-full text-sm text-ink-soft"
+              className="block w-full text-sm text-ink-soft file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brass-tint file:text-brass hover:file:bg-blue-100 transition-colors cursor-pointer"
               onChange={(e) => setAttachment(e.target.files?.[0] ?? null)}
             />
           </div>
 
-          {error ? <p className="text-sm text-brick">{error}</p> : null}
-          {message ? <p className="text-sm text-moss">{message}</p> : null}
+          {error ? <p className="text-sm font-medium text-brick bg-brick-tint p-3 rounded-lg">{error}</p> : null}
+          {message ? <p className="text-sm font-medium text-moss bg-moss-tint p-3 rounded-lg">{message}</p> : null}
 
-          <Button
-            onClick={handleCreate}
-            disabled={submitting || (mode === "specific" && !form.targetUserId)}
-          >
-            {submitting
-              ? "Sending..."
-              : mode === "specific"
-                ? "Send to this person"
-                : "Publish notice"}
-          </Button>
+          <div className="pt-2">
+            <Button
+              onClick={handleCreate}
+              disabled={submitting || (mode === "specific" && !form.targetUserId)}
+              className="bg-brass text-white hover:bg-brass-light w-full sm:w-auto px-8"
+            >
+              {submitting
+                ? "Sending..."
+                : mode === "specific"
+                  ? "Send to this person"
+                  : "Publish Notice"}
+            </Button>
+          </div>
         </div>
-      </Card>
+      </div>
   );
 }
 
@@ -311,7 +309,7 @@ function EditNotice({
   }
 
   return (
-    <div className="mt-3 space-y-3 border-t border-hairline pt-3">
+    <div className="mt-6 space-y-4 pt-6 border-t border-hairline">
       <Input
         label="Title"
         value={form.title}
@@ -334,21 +332,19 @@ function EditNotice({
         ))}
       </Select>
       <div>
-        <label className="block text-sm font-medium text-ink-soft">
-          Replace attachment (optional)
-        </label>
+        <label className="block mb-1.5">Replace attachment (optional)</label>
         <input
           type="file"
-          className="mt-1.5 block w-full text-sm text-ink-soft"
+          className="block w-full text-sm text-ink-soft file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brass-tint file:text-brass hover:file:bg-blue-100 transition-colors cursor-pointer"
           onChange={(e) => setAttachment(e.target.files?.[0] ?? null)}
         />
       </div>
-      {error ? <p className="text-sm text-brick">{error}</p> : null}
-      <div className="flex gap-2">
-        <Button onClick={handleSave} disabled={submitting}>
-          {submitting ? "Saving..." : "Save changes"}
+      {error ? <p className="text-sm font-medium text-brick">{error}</p> : null}
+      <div className="flex gap-3 pt-2">
+        <Button className="bg-brass text-white hover:bg-brass-light" onClick={handleSave} disabled={submitting}>
+          {submitting ? "Saving..." : "Save Changes"}
         </Button>
-        <Button variant="secondary" onClick={onDone}>
+        <Button className="bg-slate-tint text-ink hover:bg-hairline" onClick={onDone}>
           Cancel
         </Button>
       </div>
@@ -359,11 +355,11 @@ function EditNotice({
 function priorityStyles(priority: string) {
   switch (priority) {
     case "URGENT":
-      return "bg-brick-tint text-brick";
+      return "bg-brick-tint text-brick border border-brick/20";
     case "IMPORTANT":
-      return "bg-gold-tint text-gold";
+      return "bg-gold-tint text-gold border border-gold/20";
     default:
-      return "bg-slate-tint text-ink-soft";
+      return "bg-slate-tint text-slate border border-slate/20";
   }
 }
 
@@ -413,30 +409,36 @@ export default function NoticesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-semibold text-ink">Campus notices</h1>
-        <p className="mt-1 text-sm text-slate">
-          Announcements and updates from faculty and administration.
+    <div className="campus-page space-y-8 max-w-5xl mx-auto py-6">
+      <header className="mb-8">
+        <h1 className="campus-gradient-text pb-1">Campus Notices</h1>
+        <p className="mt-2 text-ink-soft text-base">
+          Official announcements, circulars, and updates from the administration.
         </p>
-      </div>
+      </header>
 
       {canCreate ? <CreateNotice onCreated={load} /> : null}
 
-      {loading ? <p className="text-sm text-slate">Loading notices...</p> : null}
+      {loading ? (
+        <div className="flex justify-center py-12">
+           <div className="animate-breathe text-brass font-medium">Loading circulars...</div>
+        </div>
+      ) : null}
+
       {error ? (
-        <div className="rounded-xl border border-brick/30 bg-brick-tint p-6 text-sm text-brick">
-          {error}
+        <div className="campus-card bg-brick-tint border-brick/30 p-6">
+          <p className="text-sm font-medium text-brick">{error}</p>
         </div>
       ) : null}
 
       {!loading && !error && notices.length === 0 ? (
-        <Card>
-          <p className="text-sm text-slate">No notices published yet.</p>
-        </Card>
+        <div className="campus-card p-12 text-center">
+          <p className="text-slate font-medium text-lg">No notices published yet.</p>
+          <p className="text-sm text-ink-soft mt-1">Check back later for updates.</p>
+        </div>
       ) : null}
 
-      <div className="space-y-4">
+      <div className="space-y-5">
         {[...notices]
           .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
           .map((notice) => {
@@ -444,33 +446,36 @@ export default function NoticesPage() {
               (session?.userId != null && session.userId === notice.createdByUserId) ||
               session?.role === "PRINCIPAL";
             return (
-              <Card key={notice.id}>
-                <div className="flex flex-wrap items-start justify-between gap-2">
+              <div key={notice.id} className="campus-card p-6 lg:p-8 campus-reveal">
+                <div className="flex flex-wrap items-start justify-between gap-4 border-b border-hairline pb-4 mb-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${priorityStyles(notice.priority)}`}
+                      className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${priorityStyles(notice.priority)}`}
                     >
                       {notice.priority}
                     </span>
-                    <span className="rounded-full bg-brass-tint px-2.5 py-1 text-xs font-medium text-brass">
+                    <span className="rounded-full bg-brass-tint border border-brass/20 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-brass">
                       {notice.receiverRole}
                     </span>
                     {notice.department ? (
-                      <span className="text-xs text-slate">{notice.department}</span>
+                      <span className="rounded-full bg-slate-tint border border-slate/20 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate">
+                        {notice.department}
+                      </span>
                     ) : null}
                     {notice.targetUserName ? (
-                      <span className="rounded-full bg-maroon-tint px-2.5 py-1 text-xs font-medium text-maroon">
+                      <span className="rounded-full bg-maroon-tint border border-maroon/20 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-maroon">
                         To: {notice.targetUserName}
                       </span>
                     ) : null}
                   </div>
+                  
                   {canManage && editingId !== notice.id ? (
                     <div className="flex shrink-0 gap-2">
-                      <Button variant="secondary" onClick={() => setEditingId(notice.id)}>
+                      <Button className="bg-slate-tint text-ink hover:bg-hairline text-sm px-4" onClick={() => setEditingId(notice.id)}>
                         Edit
                       </Button>
                       <Button
-                        variant="danger"
+                        className="bg-brick-tint text-brick hover:bg-brick hover:text-white transition-colors text-sm px-4"
                         onClick={() => handleDelete(notice.id)}
                         disabled={deletingId === notice.id}
                       >
@@ -490,28 +495,36 @@ export default function NoticesPage() {
                   />
                 ) : (
                   <>
-                    <h2 className="mt-3 text-lg font-semibold text-ink">{notice.title}</h2>
-                    <p className="mt-2 text-sm leading-6 text-ink-soft">{notice.description}</p>
-                    {notice.attachmentUrl ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          downloadAttachment(
-                            attachmentHref(notice.attachmentUrl)!,
-                            notice.attachmentFileName || "attachment"
-                          )
-                        }
-                        className="mt-2 inline-block text-xs font-medium text-brass hover:text-brass-light"
-                      >
-                        Download attachment
-                      </button>
-                    ) : null}
-                    <p className="mt-4 text-xs text-slate">
-                      Posted by {notice.createdBy} · {formatDateTime(notice.createdAt)}
+                    <h3 className="text-xl mb-3">{notice.title}</h3>
+                    <p className="text-sm leading-relaxed text-ink-soft whitespace-pre-wrap">
+                      {notice.description}
                     </p>
+                    
+                    {notice.attachmentUrl ? (
+                      <div className="mt-5 pt-5 border-t border-hairline">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            downloadAttachment(
+                              attachmentHref(notice.attachmentUrl)!,
+                              notice.attachmentFileName || "attachment"
+                            )
+                          }
+                          className="inline-flex items-center gap-2 rounded-lg bg-brass-tint px-4 py-2.5 text-sm font-semibold text-brass transition-colors hover:bg-blue-100"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                          Download Attachment
+                        </button>
+                      </div>
+                    ) : null}
+                    
+                    <div className="mt-6 flex items-center justify-between text-xs font-medium text-slate">
+                      <span>Posted by <strong className="text-ink">{notice.createdBy}</strong></span>
+                      <span>{formatDateTime(notice.createdAt)}</span>
+                    </div>
                   </>
                 )}
-              </Card>
+              </div>
             );
           })}
       </div>

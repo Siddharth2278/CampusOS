@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import type { Student, Teacher } from "@/lib/types";
 
@@ -55,66 +54,88 @@ export default function ApprovalsPage() {
   if (!session) return null;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-semibold text-ink">Approvals</h1>
-        <p className="mt-1 text-sm text-slate">
-          Only registrations assigned to your role are shown here.
+    <div className="campus-page space-y-8 max-w-5xl mx-auto py-6">
+      <header className="mb-8">
+        <h1 className="campus-gradient-text pb-1">Approvals</h1>
+        <p className="mt-2 text-ink-soft text-base">
+          Manage pending registrations assigned to your role.
         </p>
-      </div>
+      </header>
 
-      {loading ? <p className="text-sm text-slate">Loading approvals...</p> : null}
-      {error ? <p className="text-sm text-brick">{error}</p> : null}
+      {loading ? (
+        <div className="flex justify-center py-12">
+           <div className="animate-breathe text-brass font-medium">Loading approvals...</div>
+        </div>
+      ) : null}
+      
+      {error ? (
+        <div className="campus-card bg-brick-tint border-brick/30 p-6">
+          <p className="text-sm font-medium text-brick">{error}</p>
+        </div>
+      ) : null}
 
       {(session.role === "PRINCIPAL" || session.role === "HOD") && !loading ? (
-        <Card
-          title="Teacher registrations"
-          description={session.role === "PRINCIPAL"
-            ? "Only departments without a HOD appear in the Principal approval queue."
-            : "Only teachers registered for your department appear here."}
-        >
+        <div className="campus-card p-6 lg:p-8 campus-reveal">
+          <div className="mb-6 border-b border-hairline pb-4">
+            <h2 className="text-xl font-semibold text-ink">Teacher Registrations</h2>
+            <p className="mt-1 text-sm text-ink-soft">
+              {session.role === "PRINCIPAL"
+                ? "Only departments without a HOD appear in the Principal approval queue."
+                : "Only teachers registered for your department appear here."}
+            </p>
+          </div>
+          
           {teachers.length === 0 ? (
-            <p className="text-sm text-slate">No teacher registrations waiting for you.</p>
+            <div className="p-8 text-center bg-slate-tint/50 rounded-xl border border-dashed border-slate/30">
+              <p className="text-sm font-medium text-slate">No teacher registrations waiting for you.</p>
+            </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {teachers.map(t => (
-                <div key={t.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4">
+                <div key={t.id} className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-hairline bg-paper/50 p-4 transition-colors hover:border-slate-300">
                   <div>
-                    <p className="font-medium">{t.firstName} {t.lastName}</p>
-                    <p className="text-xs text-slate">{t.email} · {t.department?.name}</p>
+                    <p className="font-semibold text-ink">{t.firstName} {t.lastName}</p>
+                    <p className="text-xs text-ink-soft mt-0.5">{t.email} · <span className="font-medium">{t.department?.name}</span></p>
                   </div>
                   <div className="flex gap-2">
-                    <Button onClick={() => teacherAction(t.id, true)}>Approve</Button>
-                    <Button variant="secondary" onClick={() => teacherAction(t.id, false)}>Reject</Button>
+                    <Button className="bg-moss text-white hover:bg-moss/90 px-5 text-sm shadow-sm" onClick={() => teacherAction(t.id, true)}>Approve</Button>
+                    <Button className="bg-brick-tint text-brick hover:bg-brick hover:text-white px-5 text-sm transition-colors" onClick={() => teacherAction(t.id, false)}>Reject</Button>
                   </div>
                 </div>
               ))}
             </div>
           )}
-        </Card>
+        </div>
       ) : null}
 
       {(session.role === "TEACHER" || session.role === "HOD") && !loading ? (
-        <Card title="Student registrations" description="Only students belonging to your Class Teacher assignment are shown.">
+        <div className="campus-card p-6 lg:p-8 campus-reveal">
+          <div className="mb-6 border-b border-hairline pb-4">
+            <h2 className="text-xl font-semibold text-ink">Student Registrations</h2>
+            <p className="mt-1 text-sm text-ink-soft">Only students belonging to your Class Teacher assignment are shown.</p>
+          </div>
+
           {students.length === 0 ? (
-            <p className="text-sm text-slate">No student registrations waiting for your assigned class.</p>
+            <div className="p-8 text-center bg-slate-tint/50 rounded-xl border border-dashed border-slate/30">
+              <p className="text-sm font-medium text-slate">No student registrations waiting for your assigned class.</p>
+            </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {students.map(s => (
-                <div key={s.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4">
+                <div key={s.id} className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-hairline bg-paper/50 p-4 transition-colors hover:border-slate-300">
                   <div>
-                    <p className="font-medium">{s.firstName} {s.lastName}</p>
-                    <p className="text-xs text-slate">{s.enrollmentNumber} · Semester {s.semester}</p>
+                    <p className="font-semibold text-ink">{s.firstName} {s.lastName}</p>
+                    <p className="text-xs text-ink-soft mt-0.5">{s.enrollmentNumber} · <span className="font-medium">Semester {s.semester}</span></p>
                   </div>
                   <div className="flex gap-2">
-                    <Button onClick={() => studentAction(s.id, true)}>Approve</Button>
-                    <Button variant="secondary" onClick={() => studentAction(s.id, false)}>Reject</Button>
+                    <Button className="bg-moss text-white hover:bg-moss/90 px-5 text-sm shadow-sm" onClick={() => studentAction(s.id, true)}>Approve</Button>
+                    <Button className="bg-brick-tint text-brick hover:bg-brick hover:text-white px-5 text-sm transition-colors" onClick={() => studentAction(s.id, false)}>Reject</Button>
                   </div>
                 </div>
               ))}
             </div>
           )}
-        </Card>
+        </div>
       ) : null}
     </div>
   );

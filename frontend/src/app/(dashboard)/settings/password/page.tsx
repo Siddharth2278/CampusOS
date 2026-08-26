@@ -2,7 +2,6 @@
 
 import { FormEvent, useState } from "react";
 import { api, ApiError } from "@/lib/api";
-import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 
@@ -37,21 +36,56 @@ export default function ChangePasswordPage() {
   }
 
   return (
-    <div className="max-w-xl space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-semibold text-ink">Change password</h1>
-        <p className="mt-1 text-sm text-slate">Update your CampusOS account password.</p>
-      </div>
-      <Card title="Password security">
-        <form onSubmit={submit} className="space-y-4">
-          <Input label="Current password" type="password" required value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} />
-          <Input label="New password" type="password" minLength={6} required value={newPassword} onChange={e => setNewPassword(e.target.value)} />
-          <Input label="Confirm new password" type="password" minLength={6} required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
-          {error ? <p className="rounded-lg bg-brick-tint px-3 py-2 text-sm text-brick">{error}</p> : null}
-          {message ? <p className="rounded-lg bg-moss-tint px-3 py-2 text-sm text-moss">{message}</p> : null}
-          <Button type="submit" disabled={saving}>{saving ? "Updating..." : "Change password"}</Button>
+    <div className="campus-page max-w-2xl mx-auto py-10">
+      <header className="mb-8 border-b border-hairline pb-6">
+        <h1 className="campus-gradient-text pb-1 text-3xl">Change Password</h1>
+        <p className="mt-2 text-ink-soft text-base">Update your CampusOS account security credentials.</p>
+      </header>
+
+      <div className="campus-card p-6 lg:p-10 campus-reveal">
+        <h2 className="text-xl font-semibold text-ink mb-6">Password Security</h2>
+        
+        <form onSubmit={submit} className="space-y-5">
+          <Input 
+            label="Current Password" 
+            type="password" 
+            required 
+            value={currentPassword} 
+            onChange={e => setCurrentPassword(e.target.value)} 
+          />
+          <div className="pt-4 border-t border-hairline/60 space-y-5">
+            <Input 
+              label="New Password" 
+              type="password" 
+              minLength={6} 
+              required 
+              value={newPassword} 
+              onChange={e => setNewPassword(e.target.value)} 
+            />
+            <Input 
+              label="Confirm New Password" 
+              type="password" 
+              minLength={6} 
+              required 
+              value={confirmPassword} 
+              onChange={e => setConfirmPassword(e.target.value)} 
+            />
+          </div>
+
+          <div className="bg-slate-tint border border-hairline rounded-lg p-4 text-xs font-medium text-ink-soft mt-2">
+            Use at least 6 characters and avoid reusing an old password.
+          </div>
+
+          {error ? <p className="rounded-lg bg-brick-tint border border-brick/20 px-4 py-3 text-sm font-medium text-brick">{error}</p> : null}
+          {message ? <p className="rounded-lg bg-moss-tint border border-moss/20 px-4 py-3 text-sm font-medium text-moss">{message}</p> : null}
+          
+          <div className="pt-4">
+            <Button type="submit" disabled={saving} className="bg-brass text-white hover:bg-brass-light w-full sm:w-auto px-8">
+              {saving ? "Updating..." : "Change Password"}
+            </Button>
+          </div>
         </form>
-      </Card>
+      </div>
     </div>
   );
 }

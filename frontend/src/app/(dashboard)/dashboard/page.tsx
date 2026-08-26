@@ -16,8 +16,10 @@ export default function DashboardIndexPage() {
   }, [loading, session, router]);
 
   return (
-    <div className="py-10 text-center text-sm text-slate">
-      Loading dashboard...
+    <div className="min-h-[60vh] flex items-center justify-center">
+      <div className="animate-breathe text-brass font-medium text-lg">
+        Loading your workspace...
+      </div>
     </div>
   );
 }

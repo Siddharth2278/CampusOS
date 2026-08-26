@@ -3,8 +3,6 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import { Card } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import type { Notification } from "@/lib/types";
 
@@ -38,7 +36,6 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.userId]);
 
   async function markRead(id: number) {
@@ -62,67 +59,72 @@ export default function NotificationsPage() {
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   return (
-      <div className="space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="font-display text-2xl font-semibold text-ink">Notifications</h1>
-            <p className="mt-1 text-sm text-slate">
-              {unreadCount > 0 ? `${unreadCount} unread` : "You're all caught up."}
-            </p>
-          </div>
-          {unreadCount > 0 ? (
-            <Button variant="secondary" onClick={markAllRead}>
-              Mark all as read
-            </Button>
-          ) : null}
+    <div className="campus-page space-y-8 max-w-4xl mx-auto py-6">
+      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-hairline pb-6">
+        <div>
+          <h1 className="campus-gradient-text pb-1">Notifications</h1>
+          <p className="mt-2 text-ink-soft text-base">
+            {unreadCount > 0 ? `You have ${unreadCount} unread alerts.` : "You're all caught up."}
+          </p>
         </div>
+        {unreadCount > 0 ? (
+          <Button className="bg-slate-tint text-ink hover:bg-hairline px-5 shadow-sm" onClick={markAllRead}>
+            Mark all as read
+          </Button>
+        ) : null}
+      </header>
 
-        <Card>
-          {loading ? (
-            <p className="text-sm text-slate">Loading notifications...</p>
-          ) : error ? (
-            <p className="text-sm text-brick">{error}</p>
-          ) : notifications.length === 0 ? (
-            <p className="text-sm text-slate">No notifications yet.</p>
-          ) : (
-            <div className="space-y-2">
-              {[...notifications]
-                .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-                .map((notification) => (
-                  <div
-                    key={notification.id}
-                    className={[
-                      "flex items-start justify-between gap-4 rounded-xl border p-4",
-                      notification.isRead
-                        ? "border-slate-tint bg-white"
-                        : "border-brass-tint bg-brass-tint/60",
-                    ].join(" ")}
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-ink">{notification.title}</p>
-                        {!notification.isRead ? <Badge tone="indigo">New</Badge> : null}
-                      </div>
-                      <p className="mt-1 text-sm text-ink-soft">{notification.message}</p>
-                      <p className="mt-2 text-xs text-slate">
-                        {formatDateTime(notification.createdAt)}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 gap-2">
+      <div className="campus-card p-6 lg:p-8 campus-reveal">
+        {loading ? (
+          <div className="animate-breathe text-brass font-medium py-4 text-center">Loading notifications...</div>
+        ) : error ? (
+          <div className="p-4 bg-brick-tint text-brick rounded-xl text-sm font-medium">{error}</div>
+        ) : notifications.length === 0 ? (
+          <div className="p-12 text-center bg-slate-tint/50 rounded-xl border border-dashed border-slate/30">
+            <p className="text-sm font-medium text-slate">No notifications yet.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {[...notifications]
+              .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+              .map((notification) => (
+                <div
+                  key={notification.id}
+                  className={`flex flex-col sm:flex-row sm:items-start justify-between gap-4 rounded-xl border p-5 transition-colors ${
+                    notification.isRead
+                      ? "border-hairline bg-surface hover:border-slate-300"
+                      : "border-brass/30 bg-brass-tint/40 shadow-sm"
+                  }`}
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-1">
+                      <p className="font-semibold text-ink text-base">{notification.title}</p>
                       {!notification.isRead ? (
-                        <Button variant="secondary" onClick={() => markRead(notification.id)}>
-                          Mark read
-                        </Button>
+                        <span className="rounded-full bg-brass-tint border border-brass/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brass">
+                          New
+                        </span>
                       ) : null}
-                      <Button variant="ghost" onClick={() => remove(notification.id)}>
-                        Delete
-                      </Button>
                     </div>
+                    <p className="mt-2 text-sm text-ink-soft leading-relaxed">{notification.message}</p>
+                    <p className="mt-3 text-xs font-medium text-slate tracking-wide uppercase">
+                      {formatDateTime(notification.createdAt)}
+                    </p>
                   </div>
-                ))}
-            </div>
-          )}
-        </Card>
+                  <div className="flex shrink-0 gap-2 mt-2 sm:mt-0">
+                    {!notification.isRead ? (
+                      <Button className="bg-white border border-hairline text-ink hover:border-brass/40 hover:bg-brass-tint text-xs px-4" onClick={() => markRead(notification.id)}>
+                        Mark Read
+                      </Button>
+                    ) : null}
+                    <Button className="bg-transparent text-slate hover:bg-brick-tint hover:text-brick text-xs px-4" onClick={() => remove(notification.id)}>
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              ))}
+          </div>
+        )}
       </div>
+    </div>
   );
 }

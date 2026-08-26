@@ -15,14 +15,13 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "CampusOS",
-  description: "Campus management platform for students, faculty, and administration.",
+  description: "Enterprise campus management platform for students, faculty, and administration.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"
-      data-scroll-behavior="smooth"
       className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-paper text-ink">

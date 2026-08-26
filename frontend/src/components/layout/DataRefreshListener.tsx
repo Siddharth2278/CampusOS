@@ -7,18 +7,13 @@ export function DataRefreshListener() {
   const router = useRouter();
 
   useEffect(() => {
-    let timer: number | undefined;
     const handleRefresh = () => {
-      if (timer) window.clearTimeout(timer);
-      timer = window.setTimeout(() => {
-        router.refresh();
-        timer = undefined;
-      }, 120);
+      // Removed the 120ms delay - this now refreshes the data instantly
+      router.refresh();
     };
 
     window.addEventListener("campusos:data-changed", handleRefresh);
     return () => {
-      if (timer) window.clearTimeout(timer);
       window.removeEventListener("campusos:data-changed", handleRefresh);
     };
   }, [router]);

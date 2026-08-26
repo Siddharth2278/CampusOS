@@ -32,8 +32,6 @@ function roleLabel(role: string) {
   }
 }
 
-// Each seat gets its own accent so the role is legible at a glance, not
-// just spelled out in text — the same idea academic hoods use color for.
 const roleAccent: Record<Role, string> = {
   PRINCIPAL: "bg-maroon",
   HOD: "bg-brass",
@@ -195,24 +193,24 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             baseNavItems[5],
             baseNavItems[6],
             baseNavItems[7],
-              directoryItem,
+            directoryItem,
             { href: "/approvals", label: "Approvals", match: "/approvals" },
+          ]
+        : session?.role === "TEACHER"
+          ? [
+              baseNavItems[0],
+              baseNavItems[1],
+              baseNavItems[2],
+              baseNavItems[3],
+              baseNavItems[4],
+              baseNavItems[5],
+              baseNavItems[6],
+              baseNavItems[7],
+              { href: "/approvals", label: "Student approvals", match: "/approvals" },
             ]
-          : session?.role === "TEACHER"
-            ? [
-                baseNavItems[0],
-                baseNavItems[1],
-                baseNavItems[2],
-                baseNavItems[3],
-                baseNavItems[4],
-                baseNavItems[5],
-                baseNavItems[6],
-                baseNavItems[7],
-                      { href: "/approvals", label: "Student approvals", match: "/approvals" },
-                    ]
-            : [
-                ...baseNavItems,
-                    ];
+          : [
+              ...baseNavItems,
+            ];
 
   useEffect(() => {
     if (!session?.userId) return;
@@ -229,11 +227,6 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     }
   }, [session?.userId, pathname]);
 
-  // Lock page scroll behind the drawer while it's open, so the drawer
-  // doesn't fight the page for touch scrolling on a phone. Closing on
-  // navigation is handled by onNavigate on each link instead of an
-  // effect keyed on pathname, to avoid a redundant render-triggering
-  // setState here.
   useEffect(() => {
     document.body.style.overflow = drawerOpen ? "hidden" : "";
     return () => {
@@ -255,7 +248,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         </p>
       </div>
       <p className="mt-1 text-xs text-slate">{session ? roleLabel(session.role) : ""}</p>
-      <Button variant="ghost" className="mt-3 w-full justify-start px-0" onClick={logout}>
+      <Button variant="ghost" className="mt-3 w-full justify-start px-0 text-maroon hover:text-maroon" onClick={logout}>
         Sign out
       </Button>
     </div>
@@ -400,6 +393,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               ) : null}
             </Link>
           </header>
+          
           <main className="campus-page flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
             <div className="pointer-events-none fixed right-[5%] top-[18%] z-0 h-28 w-28 rounded-full bg-brass/8 blur-3xl animate-[campus-float_7s_ease-in-out_infinite]" />
             <div className="relative z-10">{children}</div>

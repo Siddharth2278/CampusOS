@@ -16,7 +16,9 @@ export default function HomePage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-paper">
-      <p className="text-sm text-slate">Redirecting...</p>
+      <div className="animate-breathe text-brass font-semibold tracking-wide">
+        Redirecting to your workspace...
+      </div>
     </div>
   );
 }

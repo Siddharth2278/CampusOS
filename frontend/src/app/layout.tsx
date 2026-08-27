@@ -1,30 +1,28 @@
 import type { Metadata } from "next";
-import { Inter, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import { AuthProvider } from "@/context/AuthContext";
 import "./globals.css";
 
 const inter = Inter({
+  subsets: ["latin"],
   variable: "--font-inter",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "CampusOS",
-  description: "Enterprise campus management platform for students, faculty, and administration.",
+  title: "CampusOS — The Unified Dashboard for Our College",
+  description:
+    "Single-institution academic OS connecting Principal, Teachers and Students across all 6 semesters. Role-isolated dashboards, Cloudinary storage, Supabase PostgreSQL.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html
-      lang="en"
-      className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col bg-paper text-ink">
+    <html lang="en" className={`h-full scroll-smooth ${inter.variable}`}>
+      <body className="w-full m-0 p-0 overflow-x-hidden bg-slate-50 text-slate-900 min-h-screen flex flex-col antialiased selection:bg-slate-900 selection:text-white">
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

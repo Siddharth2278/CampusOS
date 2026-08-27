@@ -25,4 +25,6 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
     // Active Notices
     List<Notice> findByExpiryDateAfterOrderByCreatedAtDesc(
             LocalDateTime dateTime);
+
+    List<Notice> findByAttachmentUrlIsNotNullAndCreatedAtBefore(LocalDateTime cutoff);
 }

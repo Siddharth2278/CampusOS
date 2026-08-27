@@ -20,9 +20,9 @@ import com.campusos.backend.dto.AuthMeResponse;
 import com.campusos.backend.dto.ProfileResponse;
 import com.campusos.backend.dto.ProfileUpdateRequest;
 import com.campusos.backend.enums.UserStatus;
-import com.campusos.backend.entity.College;
-import com.campusos.backend.enums.CollegeType;
-import com.campusos.backend.repository.CollegeRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.transaction.Transactional;
 
 @Service
 public class AuthService {
@@ -33,13 +33,14 @@ public class AuthService {
     private final StudentRepository studentRepository;
     private final DepartmentRepository departmentRepository;
     private final TeacherRepository teacherRepository;
-    private final CollegeRepository collegeRepository;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
 public AuthService(UserRepository userRepository,
                    StudentRepository studentRepository,
                    DepartmentRepository departmentRepository,
                    TeacherRepository teacherRepository,
-                   CollegeRepository collegeRepository,
                    BCryptPasswordEncoder passwordEncoder,
                    JwtService jwtService) {
 
@@ -47,7 +48,6 @@ public AuthService(UserRepository userRepository,
     this.studentRepository = studentRepository;
     this.departmentRepository = departmentRepository;
     this.teacherRepository = teacherRepository;
-    this.collegeRepository = collegeRepository;
     this.passwordEncoder = passwordEncoder;
     this.jwtService = jwtService;
 }
@@ -59,6 +59,11 @@ public User register(RegisterRequest request, Role role) {
         throw new RuntimeException("This email is already registered. Please use the Login option.");
     }
 
+    // Single institution: only one PRINCIPAL allowed
+    if (role == Role.PRINCIPAL && userRepository.countByRole(Role.PRINCIPAL) > 0) {
+        throw new RuntimeException("A Principal already exists. Only one Principal is allowed.");
+    }
+
     User user = new User();
 
     user.setFirstName(request.getFirstName());
@@ -68,36 +73,6 @@ public User register(RegisterRequest request, Role role) {
     user.setRole(role);
     user.setStatus(role == Role.PRINCIPAL ? UserStatus.APPROVED : UserStatus.PENDING);
 
-    if (role == Role.PRINCIPAL) {
-
-        if (request.getCollegeName() == null || request.getCollegeName().trim().isEmpty()) {
-            throw new RuntimeException("College name is required.");
-        }
-        if (request.getCollegeType() == null || request.getCollegeType().trim().isEmpty()) {
-            throw new RuntimeException("Please specify whether this is a Diploma or Degree college.");
-        }
-
-        String collegeName = request.getCollegeName().trim();
-
-        if (collegeRepository.existsByNameIgnoreCase(collegeName)) {
-            throw new RuntimeException("This college is already registered on CampusOS. Ask your Principal to add you as HOD or Teacher, or contact them for access.");
-        }
-
-        CollegeType type;
-        try {
-            type = CollegeType.valueOf(request.getCollegeType().trim().toUpperCase());
-        } catch (IllegalArgumentException ex) {
-            throw new RuntimeException("College type must be either DIPLOMA or DEGREE.");
-        }
-
-        College college = new College();
-        college.setName(collegeName);
-        college.setType(type);
-        college = collegeRepository.save(college);
-
-        user.setCollege(college);
-    }
-
     user = userRepository.save(user);
 
     if (role == Role.STUDENT) {
@@ -106,14 +81,9 @@ public User register(RegisterRequest request, Role role) {
                 .findById(request.getDepartmentId())
                 .orElseThrow(() -> new RuntimeException("Department not found"));
 
-        if (department.getCollege() != null && request.getSemester() != null
-                && request.getSemester() > department.getCollege().getTotalSemesters()) {
-            throw new RuntimeException("This is a " + department.getCollege().getType()
-                    + " college — semester must be between 1 and " + department.getCollege().getTotalSemesters() + ".");
+        if (request.getSemester() != null && (request.getSemester() < 1 || request.getSemester() > 8)) {
+            throw new RuntimeException("Semester must be between 1 and 8.");
         }
-
-        user.setCollege(department.getCollege());
-        userRepository.save(user);
 
         Student student = new Student();
 
@@ -136,9 +106,6 @@ public User register(RegisterRequest request, Role role) {
         Department department = departmentRepository
                 .findById(request.getDepartmentId())
                 .orElseThrow(() -> new RuntimeException("Department not found"));
-
-        user.setCollege(department.getCollege());
-        userRepository.save(user);
 
         Teacher teacher = new Teacher();
 
@@ -303,5 +270,38 @@ public void saveLastRoute(String email, String route) {
     user.setLastRoute(clean);
     userRepository.save(user);
 }
+
+    public boolean principalExists() {
+        return userRepository.countByRole(Role.PRINCIPAL) > 0;
+    }
+
+    @Transactional
+    public void deleteOwnAccount(String email) {
+        User me = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found."));
+        if (me.getRole() != Role.PRINCIPAL) {
+            throw new RuntimeException("Only Principal can delete own account via this operation.");
+        }
+        // Single institution reset: delete all data (MySQL & PostgreSQL compatible)
+        try {
+            // Delete child -> parent to avoid FK violations (no FK_CHECKS toggle needed)
+            entityManager.createNativeQuery("DELETE FROM assignment_submissions").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM assignments").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM leave_requests").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM faculty_assignments").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM exams").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM academic_calendar").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM timetable").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM notices").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM notifications").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM attendance").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM subjects").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM students").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM teachers").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM departments").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM users").executeUpdate();
+        } catch (Exception ex) {
+            throw new RuntimeException("Failed to delete principal account: " + ex.getMessage());
+        }
+    }
 
 }

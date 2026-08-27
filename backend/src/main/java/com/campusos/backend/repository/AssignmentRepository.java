@@ -19,4 +19,6 @@ List<Assignment> findByDueDateBetween(
         LocalDateTime start,
         LocalDateTime end);
 
+    List<Assignment> findByAttachmentUrlIsNotNullAndCreatedAtBefore(LocalDateTime cutoff);
+
 }

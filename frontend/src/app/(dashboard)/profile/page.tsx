@@ -1,15 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/Button";
+import { api, ApiError } from "@/lib/api";
+import { clearSession } from "@/lib/auth";
 
 export default function Profile() {
   const { session } = useAuth(); 
+  const router = useRouter();
   const [name, setName] = useState(session?.displayName ?? ""); 
   const [email, setEmail] = useState(session?.email ?? ""); 
   const [phone, setPhone] = useState(""); 
   const [msg, setMsg] = useState("");
+  const [err, setErr] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     setName(session?.displayName ?? "");
@@ -17,7 +23,7 @@ export default function Profile() {
   }, [session]);
 
   async function save() {
-    setMsg("");
+    setMsg(""); setErr("");
     try { 
       const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080"; 
       const raw = sessionStorage.getItem("campusos_session"); 
@@ -33,6 +39,23 @@ export default function Profile() {
     } catch {
       setMsg("Profile API is not connected yet. Your existing backend remains unchanged.");
     }
+  }
+
+  async function deletePrincipal() {
+    if (session?.role !== "PRINCIPAL") return;
+    const ok = confirm("Delete your Principal account? This will RESET the entire college data — all departments, teachers, students, and settings will be permanently deleted. This cannot be undone. Continue?");
+    if (!ok) return;
+    const confirm2 = prompt("Type DELETE to confirm:");
+    if (confirm2 !== "DELETE") { setErr("Deletion cancelled. Type DELETE exactly to confirm."); return; }
+    setDeleting(true); setErr(""); setMsg("");
+    try {
+      await api.deleteOwnAccount();
+      clearSession();
+      alert("Principal account and college data deleted. You will be redirected to Register.");
+      router.push("/register");
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : "Unable to delete account.");
+    } finally { setDeleting(false); }
   }
 
   return (
@@ -93,6 +116,7 @@ export default function Profile() {
             </div>
 
             {msg && <p className="text-sm font-medium text-moss bg-moss-tint p-3 rounded-lg border border-moss/20">{msg}</p>}
+            {err && <p className="text-sm font-medium text-brick bg-brick-tint p-3 rounded-lg border border-brick/20">{err}</p>}
 
             <div className="flex flex-wrap gap-4 pt-4 border-t border-hairline">
               <Button onClick={save} className="bg-brass text-white hover:bg-brass-light px-8 shadow-sm">Save Changes</Button>
@@ -100,6 +124,16 @@ export default function Profile() {
                 Change Password
               </a>
             </div>
+
+            {session?.role === "PRINCIPAL" ? (
+              <div className="mt-8 rounded-xl border border-brick/20 bg-brick-tint p-5">
+                <h3 className="text-sm font-bold text-brick">Danger Zone — Principal</h3>
+                <p className="mt-1 text-xs font-medium text-brick/80">Delete your Principal account and reset single-college system. All college data will be erased and the Principal registration option will reappear for a new college setup.</p>
+                <Button onClick={deletePrincipal} disabled={deleting} className="mt-4 bg-brick text-white hover:bg-brick/90 text-sm px-6 disabled:opacity-50">
+                  {deleting ? "Deleting..." : "Delete My Principal Account & Reset College"}
+                </Button>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

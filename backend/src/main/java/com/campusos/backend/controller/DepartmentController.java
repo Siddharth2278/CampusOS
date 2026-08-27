@@ -22,11 +22,21 @@ public class DepartmentController {
         return departmentService.createDepartment(department, email);
     }
 
-    // Public: pass collegeId when calling from the (pre-login) registration page.
-    // Omit collegeId when calling from inside the app while logged in - your own college is used.
+    @PutMapping("/{id}")
+    public Department updateDepartment(@PathVariable Long id, @RequestBody Department department, @AuthenticationPrincipal String email) {
+        return departmentService.updateDepartment(id, department, email);
+    }
+
+    @DeleteMapping("/{id}")
+    public String deleteDepartment(@PathVariable Long id, @AuthenticationPrincipal String email) {
+        departmentService.deleteDepartment(id, email);
+        return "Department deleted";
+    }
+
     @GetMapping
     public List<Department> getDepartments(@RequestParam(required = false) Long collegeId,
                                             @AuthenticationPrincipal String email) {
-        return departmentService.getDepartments(collegeId, email);
+        // collegeId ignored after single-institution refactor — kept for backward compat with frontend
+        return departmentService.getDepartments(email);
     }
 }

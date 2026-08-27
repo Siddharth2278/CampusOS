@@ -52,12 +52,9 @@ public class TeacherService {
         if (!Boolean.TRUE.equals(actor.getHod()) || actor.getDepartment() == null) {
             throw new RuntimeException("Only the HOD can assign Class Teachers.");
         }
-        if (actor.getDepartment().getCollege() == null) {
-            throw new RuntimeException("Your college is not set up correctly. Contact CampusOS support.");
-        }
-        int maxSemester = actor.getDepartment().getCollege().getTotalSemesters();
-        if (semester == null || semester < 1 || semester > maxSemester) {
-            throw new RuntimeException("Invalid semester. This college runs " + maxSemester + " semesters.");
+        // Single institution: fixed 8 semesters
+        if (semester == null || semester < 1 || semester > 8) {
+            throw new RuntimeException("Invalid semester. Must be between 1 and 8.");
         }
 
         Teacher target = teacherRepository.findById(teacherId)
@@ -118,5 +115,72 @@ public class TeacherService {
         userRepository.save(teacher.getUser());
         departmentRepository.save(department);
         return teacherRepository.save(teacher);
+    }
+
+    public Teacher removeHod(Long departmentId, String principalEmail) {
+        User principal = userRepository.findByEmail(principalEmail)
+                .orElseThrow(() -> new RuntimeException("User not found."));
+        if (principal.getRole() != Role.PRINCIPAL) throw new RuntimeException("Only Principal can remove HOD.");
+        Department department = departmentRepository.findById(departmentId)
+                .orElseThrow(() -> new RuntimeException("Department not found."));
+        Teacher hod = department.getHod();
+        if (hod == null) throw new RuntimeException("Department has no HOD to remove.");
+        hod.setHod(false);
+        if (hod.getUser() != null) {
+            hod.getUser().setRole(Role.TEACHER);
+            userRepository.save(hod.getUser());
+        }
+        department.setHod(null);
+        departmentRepository.save(department);
+        return teacherRepository.save(hod);
+    }
+
+    public Teacher updateTeacher(Long id, Teacher dto, String email) {
+        User actor = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found."));
+        Teacher target = teacherRepository.findById(id).orElseThrow(() -> new RuntimeException("Teacher not found."));
+        boolean isPrincipal = actor.getRole() == Role.PRINCIPAL;
+        boolean isHod = false;
+        if (actor.getRole() == Role.HOD) {
+            Teacher hodTeacher = teacherRepository.findByUser(actor).orElse(null);
+            isHod = hodTeacher != null && Boolean.TRUE.equals(hodTeacher.getHod()) && hodTeacher.getDepartment() != null && target.getDepartment() != null && hodTeacher.getDepartment().getId().equals(target.getDepartment().getId());
+        }
+        if (!isPrincipal && !isHod) throw new RuntimeException("You don't have permission to edit this teacher.");
+        if (dto.getFirstName() != null && !dto.getFirstName().isBlank()) target.setFirstName(dto.getFirstName().trim());
+        if (dto.getLastName() != null && !dto.getLastName().isBlank()) target.setLastName(dto.getLastName().trim());
+        if (dto.getPhone() != null) target.setPhone(dto.getPhone().trim());
+        if (dto.getDepartment() != null && dto.getDepartment().getId() != null && isPrincipal) {
+            Department newDept = departmentRepository.findById(dto.getDepartment().getId()).orElseThrow(() -> new RuntimeException("Department not found."));
+            target.setDepartment(newDept);
+        }
+        if (target.getUser() != null) {
+            target.getUser().setFirstName(target.getFirstName());
+            target.getUser().setLastName(target.getLastName());
+            if (target.getPhone() != null) target.getUser().setPhone(target.getPhone());
+            userRepository.save(target.getUser());
+        }
+        return teacherRepository.save(target);
+    }
+
+    public void deleteTeacher(Long id, String email) {
+        User actor = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found."));
+        if (actor.getRole() != Role.PRINCIPAL) throw new RuntimeException("Only Principal can delete teachers.");
+        Teacher target = teacherRepository.findById(id).orElseThrow(() -> new RuntimeException("Teacher not found."));
+        if (Boolean.TRUE.equals(target.getHod())) throw new RuntimeException("Remove HOD assignment before deleting teacher.");
+        if (Boolean.TRUE.equals(target.getClassTeacher())) throw new RuntimeException("Remove Class Teacher assignment before deleting teacher.");
+        User u = target.getUser();
+        teacherRepository.delete(target);
+        if (u != null) userRepository.delete(u);
+    }
+
+    public Teacher removeClassTeacher(Long teacherId, String email) {
+        User actorUser = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found."));
+        Teacher actor = teacherRepository.findByUser(actorUser).orElseThrow(() -> new RuntimeException("Teacher profile not found."));
+        if (!Boolean.TRUE.equals(actor.getHod()) || actor.getDepartment() == null) throw new RuntimeException("Only HOD can remove Class Teacher.");
+        Teacher target = teacherRepository.findById(teacherId).orElseThrow(() -> new RuntimeException("Teacher not found."));
+        if (target.getDepartment() == null || !actor.getDepartment().getId().equals(target.getDepartment().getId()))
+            throw new RuntimeException("You can manage only your department.");
+        target.setClassTeacher(false);
+        target.setClassTeacherSemester(null);
+        return teacherRepository.save(target);
     }
 }

@@ -8,8 +8,8 @@ import lombok.AllArgsConstructor;
 
 @Entity
 @Table(name = "departments", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"name", "college_id"}),
-        @UniqueConstraint(columnNames = {"code", "college_id"})
+        @UniqueConstraint(columnNames = {"name"}),
+        @UniqueConstraint(columnNames = {"code"})
 })
 @Data
 @NoArgsConstructor
@@ -20,18 +20,13 @@ public class Department {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true)
     private String name;
 
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true)
     private String code;
 
     private String description;
-
-    @ManyToOne
-    @JoinColumn(name = "college_id")
-    @JsonIgnoreProperties({"departments"})
-    private College college;
 
     @OneToOne
     @JoinColumn(name = "hod_teacher_id")

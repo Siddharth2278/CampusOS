@@ -18,8 +18,4 @@ public class RegisterRequest {
     private Integer admissionYear;
 
     private Long departmentId;
-
-    // College Information (Principal registration only)
-    private String collegeName;
-    private String collegeType; // "DIPLOMA" or "DEGREE"
 }

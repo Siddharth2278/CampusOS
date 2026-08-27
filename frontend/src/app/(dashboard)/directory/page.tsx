@@ -10,9 +10,12 @@ import type { Department, FacultyAssignment, Student, Subject, Teacher } from "@
 
 const SEMESTERS = [1, 2, 3, 4, 5, 6];
 
-function DepartmentsTab({ departments, canCreate, reload }: { departments: Department[]; canCreate: boolean; reload: () => void }) {
+function DepartmentsTab({ departments, canCreate, canEdit, reload }: { departments: Department[]; canCreate: boolean; canEdit: boolean; reload: () => void }) {
   const [form, setForm] = useState({ name: "", code: "", description: "" });
   const [error, setError] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", code: "", description: "" });
+  const [editError, setEditError] = useState("");
   
   async function create() {
     setError("");
@@ -21,6 +24,26 @@ function DepartmentsTab({ departments, canCreate, reload }: { departments: Depar
       setForm({ name: "", code: "", description: "" });
       reload();
     } catch (e) { setError(e instanceof ApiError ? e.message : "Unable to create department."); }
+  }
+
+  function startEdit(d: Department) {
+    setEditingId(d.id);
+    setEditForm({ name: d.name, code: d.code, description: d.description ?? "" });
+    setEditError("");
+  }
+  async function saveEdit() {
+    if (editingId == null) return;
+    setEditError("");
+    try {
+      await api.updateDepartment(editingId, editForm);
+      setEditingId(null);
+      reload();
+    } catch (e) { setEditError(e instanceof ApiError ? e.message : "Unable to update department."); }
+  }
+  async function removeDept(id: number) {
+    if (!confirm("Delete this department? This cannot be undone. Remove HOD and ensure no teachers/students remain.")) return;
+    setError("");
+    try { await api.deleteDepartment(id); reload(); } catch (e) { setError(e instanceof ApiError ? e.message : "Unable to delete. Remove HOD/teachers first."); }
   }
   
   return (
@@ -39,26 +62,48 @@ function DepartmentsTab({ departments, canCreate, reload }: { departments: Depar
       ) : null}
       
       <div className="campus-card p-6 lg:p-8 campus-reveal">
-        <h2 className="text-xl font-semibold text-ink mb-6 pb-4 border-b border-hairline">Active Departments</h2>
+        <h2 className="text-xl font-semibold text-ink mb-6 pb-4 border-b border-hairline">Active Departments {canEdit ? <span className="text-xs font-normal text-slate">(Principal can edit/delete)</span> : null}</h2>
         {departments.length === 0 ? (
           <p className="text-sm font-medium text-slate text-center py-6">No departments created yet.</p>
         ) : (
           <div className="grid sm:grid-cols-2 gap-4">
             {departments.map(d => (
               <div key={d.id} className="flex flex-col gap-3 rounded-xl border border-hairline bg-paper/50 p-5 hover:border-slate-300 transition-colors">
-                <div>
-                  <p className="font-semibold text-ink">{d.name} <span className="text-slate ml-1">({d.code})</span></p>
-                  <p className="text-xs text-ink-soft mt-1">{d.description || "No description provided."}</p>
-                </div>
-                <div className="mt-2 pt-3 border-t border-hairline/60">
-                  <span className={`inline-flex rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${d.hod ? "bg-brass-tint text-brass border border-brass/20" : "bg-slate-tint text-slate border border-slate/20"}`}>
-                    {d.hod ? `HOD: ${d.hod.firstName} ${d.hod.lastName}` : "HOD Not Assigned"}
-                  </span>
-                </div>
+                {editingId === d.id ? (
+                  <div className="space-y-3">
+                    <Input label="Name" value={editForm.name} onChange={e=>setEditForm({...editForm,name:e.target.value})}/>
+                    <Input label="Code" value={editForm.code} onChange={e=>setEditForm({...editForm,code:e.target.value})}/>
+                    <Input label="Description" value={editForm.description} onChange={e=>setEditForm({...editForm,description:e.target.value})}/>
+                    {editError ? <p className="text-xs font-medium text-brick bg-brick-tint p-2 rounded">{editError}</p> : null}
+                    <div className="flex gap-2">
+                      <Button className="bg-brass text-white text-xs px-4 py-2" onClick={saveEdit}>Save</Button>
+                      <Button className="bg-white border border-hairline text-xs px-4 py-2" onClick={()=>setEditingId(null)}>Cancel</Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <p className="font-semibold text-ink">{d.name} <span className="text-slate ml-1">({d.code})</span></p>
+                      <p className="text-xs text-ink-soft mt-1">{d.description || "No description provided."}</p>
+                    </div>
+                    <div className="mt-2 pt-3 border-t border-hairline/60 flex items-center justify-between gap-2">
+                      <span className={`inline-flex rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${d.hod ? "bg-brass-tint text-brass border border-brass/20" : "bg-slate-tint text-slate border border-slate/20"}`}>
+                        {d.hod ? `HOD: ${d.hod.firstName} ${d.hod.lastName}` : "HOD Not Assigned"}
+                      </span>
+                      {canEdit ? (
+                        <div className="flex gap-1.5">
+                          <button onClick={()=>startEdit(d)} className="rounded-lg border border-hairline bg-white px-3 py-1 text-xs font-semibold text-ink hover:bg-slate-tint">Edit</button>
+                          <button onClick={()=>removeDept(d.id)} className="rounded-lg border border-brick/20 bg-brick-tint px-3 py-1 text-xs font-semibold text-brick hover:bg-brick hover:text-white">Delete</button>
+                        </div>
+                      ) : null}
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>
         )}
+        {error && departments.length>0 ? <p className="mt-4 text-sm font-medium text-brick bg-brick-tint p-3 rounded-lg">{error}</p> : null}
       </div>
     </div>
   );
@@ -69,38 +114,54 @@ function HodManagementTab({ departments, teachers, reload }: { departments: Depa
   const [candidates, setCandidates] = useState<Teacher[]>([]);
   const [teacherId, setTeacherId] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const selected = departments.find(d => String(d.id) === departmentId);
   
   useEffect(() => {
-    setCandidates([]); setTeacherId(""); setError("");
-    if(!departmentId || selected?.hod) return;
+    setCandidates([]); setTeacherId(""); setError(""); setSuccess("");
+    if(!departmentId) return;
+    if(selected?.hod) return;
     api.getHodCandidates(Number(departmentId)).then(setCandidates).catch(e => setError(e instanceof ApiError ? e.message : "Unable to load HOD candidates."));
   }, [departmentId, selected?.hod?.id]);
   
   async function assign() {
     if(!teacherId) return;
-    setError("");
-    try { await api.makeHod(Number(teacherId)); reload(); setTeacherId(""); }
+    setError(""); setSuccess("");
+    try { await api.makeHod(Number(teacherId)); setSuccess("HOD assigned successfully."); reload(); setTeacherId(""); }
     catch(e) { setError(e instanceof ApiError ? e.message : "Unable to assign HOD."); }
+  }
+  async function remove() {
+    if(!departmentId) return;
+    if(!confirm(`Remove HOD ${selected?.hod?.firstName} ${selected?.hod?.lastName} from ${selected?.name}? They will be reverted to Teacher.`)) return;
+    setError(""); setSuccess("");
+    try { await api.removeHod(Number(departmentId)); setSuccess("HOD removed. Department now has no HOD."); reload(); }
+    catch(e) { setError(e instanceof ApiError ? e.message : "Unable to remove HOD."); }
   }
   
   return (
     <div className="space-y-6">
       <div className="campus-card p-6 lg:p-8 campus-reveal">
         <h2 className="text-xl font-semibold text-ink mb-6 pb-4 border-b border-hairline">Assign Head of Department</h2>
+        <p className="text-xs font-medium text-slate mb-4">Principal can assign one HOD per department and can also remove/replace HOD.</p>
         <div className="grid gap-5 sm:grid-cols-2">
           <Select label="Department" value={departmentId} onChange={e=>setDepartmentId(e.target.value)}>
             <option value="">Select department</option>
-            {departments.map(d=><option key={d.id} value={d.id}>{d.name} · {d.code}</option>)}
+            {departments.map(d=><option key={d.id} value={d.id}>{d.name} · {d.code} {d.hod ? `— HOD: ${d.hod.firstName}` : ""}</option>)}
           </Select>
           <Select label="Approved Teacher" value={teacherId} disabled={!departmentId || !!selected?.hod || candidates.length===0} onChange={e=>setTeacherId(e.target.value)}>
-            <option value="">{selected?.hod ? "HOD already assigned" : candidates.length ? "Select a teacher" : "No approved teacher available"}</option>
+            <option value="">{selected?.hod ? "HOD already assigned — remove first" : candidates.length ? "Select a teacher" : "No approved teacher available"}</option>
             {candidates.map(t=><option key={t.id} value={t.id}>{t.firstName} {t.lastName} · {t.teacherId}</option>)}
           </Select>
         </div>
-        {selected?.hod ? <p className="mt-4 text-sm font-medium text-gold bg-gold-tint p-3 rounded-lg border border-gold/20">This department already has an assigned HOD.</p> : null}
+        {selected?.hod ? (
+          <div className="mt-4 rounded-lg border border-brass/20 bg-brass-tint p-4">
+            <p className="text-sm font-semibold text-ink">Current HOD: {selected.hod.firstName} {selected.hod.lastName} ({selected.hod.email})</p>
+            <Button className="mt-3 bg-brick text-white hover:bg-brick/90 text-xs px-4 py-2" onClick={remove}>Remove HOD (Demote to Teacher)</Button>
+          </div>
+        ) : null}
         {error ? <p className="mt-4 text-sm font-medium text-brick bg-brick-tint p-3 rounded-lg">{error}</p> : null}
-        <Button className="mt-6 bg-brass text-white hover:bg-brass-light" onClick={assign} disabled={!teacherId || !!selected?.hod}>Assign as HOD</Button>
+        {success ? <p className="mt-4 text-sm font-medium text-moss bg-moss-tint p-3 rounded-lg">{success}</p> : null}
+        {!selected?.hod ? <Button className="mt-6 bg-brass text-white hover:bg-brass-light" onClick={assign} disabled={!teacherId}>Assign as HOD</Button> : null}
       </div>
       
       <div className="campus-card p-6 lg:p-8 campus-reveal">
@@ -112,6 +173,7 @@ function HodManagementTab({ departments, teachers, reload }: { departments: Depa
               <span className={`inline-flex w-fit rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${d.hod ? "bg-brass-tint text-brass border border-brass/20" : "bg-slate-tint text-slate border border-slate/20"}`}>
                 {d.hod ? `${d.hod.firstName} ${d.hod.lastName}` : "No HOD assigned"}
               </span>
+              {d.hod ? <span className="text-xs text-ink-soft">{d.hod.email}</span> : null}
             </div>
           ))}
         </div>
@@ -163,44 +225,161 @@ function SubjectsTab({ subjects, departmentId, reload }: { subjects:Subject[]; d
   );
 }
 
+function PrincipalTeachersTab({ teachers, departments, reload }: { teachers: Teacher[]; departments: Department[]; reload: () => void }) {
+  const [filterDept, setFilterDept] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [edit, setEdit] = useState({ firstName: "", lastName: "", phone: "", departmentId: "" });
+  const [error, setError] = useState("");
+  const [q, setQ] = useState("");
+  const filtered = useMemo(() => {
+    let r = teachers;
+    if (filterDept) r = r.filter(t => String(t.department?.id) === filterDept);
+    if (q) { const x = q.toLowerCase(); r = r.filter(t => `${t.firstName} ${t.lastName} ${t.email} ${t.teacherId}`.toLowerCase().includes(x)); }
+    return r;
+  }, [teachers, filterDept, q]);
+
+  function startEdit(t: Teacher) {
+    setEditingId(t.id);
+    setEdit({ firstName: t.firstName, lastName: t.lastName, phone: t.phone ?? "", departmentId: String(t.department?.id ?? "") });
+    setError("");
+  }
+  async function saveEdit() {
+    if (editingId == null) return;
+    setError("");
+    try {
+      const body: any = { firstName: edit.firstName, lastName: edit.lastName, phone: edit.phone };
+      if (edit.departmentId) body.department = { id: Number(edit.departmentId) };
+      await api.updateTeacher(editingId, body);
+      setEditingId(null); reload();
+    } catch (e) { setError(e instanceof ApiError ? e.message : "Unable to update teacher."); }
+  }
+  async function del(id: number) {
+    if (!confirm("Delete this teacher? This will also delete their User account.")) return;
+    setError("");
+    try { await api.deleteTeacher(id); reload(); } catch (e) { setError(e instanceof ApiError ? e.message : "Unable to delete teacher. Remove HOD/Class Teacher first."); }
+  }
+
+  return (
+    <div className="campus-card p-6 lg:p-8 campus-reveal">
+      <div className="mb-6 border-b border-hairline pb-4">
+        <h2 className="text-xl font-semibold text-ink">All Teachers — Principal Edit</h2>
+        <p className="mt-1 text-sm text-ink-soft">Principal can edit any teacher in college, move department, or delete (if not HOD/Class Teacher).</p>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-3 mb-6">
+        <Input label="Search" placeholder="Name / Email / Teacher ID" value={q} onChange={e=>setQ(e.target.value)} />
+        <Select label="Filter by Department" value={filterDept} onChange={e=>setFilterDept(e.target.value)}><option value="">All Departments</option>{departments.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</Select>
+      </div>
+      {error ? <p className="mb-4 text-sm font-medium text-brick bg-brick-tint p-3 rounded-lg">{error}</p> : null}
+      <div className="space-y-4">
+        {filtered.length===0 ? <p className="text-sm text-slate text-center py-6">No teachers found.</p> :
+        filtered.map(t => (
+          <div key={t.id} className="flex flex-col gap-3 rounded-xl border border-hairline bg-paper/50 p-5">
+            {editingId === t.id ? (
+              <div className="space-y-3">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <Input label="First Name" value={edit.firstName} onChange={e=>setEdit({...edit, firstName: e.target.value})}/>
+                  <Input label="Last Name" value={edit.lastName} onChange={e=>setEdit({...edit, lastName: e.target.value})}/>
+                  <Input label="Phone" value={edit.phone} onChange={e=>setEdit({...edit, phone: e.target.value})}/>
+                </div>
+                <Select label="Department" value={edit.departmentId} onChange={e=>setEdit({...edit, departmentId: e.target.value})}>
+                  {departments.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
+                </Select>
+                <div className="flex gap-2">
+                  <Button className="bg-brass text-white text-xs px-4 py-1.5" onClick={saveEdit}>Save</Button>
+                  <Button className="bg-white border border-hairline text-xs px-4 py-1.5" onClick={()=>setEditingId(null)}>Cancel</Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="font-semibold text-ink">{t.firstName} {t.lastName}</p>
+                    {t.hod ? <span className="rounded-full bg-brass-tint border border-brass/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brass">HOD</span> : null}
+                    {t.classTeacher ? <span className="rounded-full bg-moss-tint border border-moss/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-moss">Class Teacher Sem {t.classTeacherSemester}</span> : null}
+                  </div>
+                  <p className="text-xs text-ink-soft">{t.teacherId} · {t.email} · {t.department?.name ?? "No Dept"}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={()=>startEdit(t)} className="rounded-lg border border-hairline bg-white px-4 py-1.5 text-xs font-semibold text-ink hover:bg-slate-tint">Edit</button>
+                  <button onClick={()=>del(t.id)} className="rounded-lg border border-brick/20 bg-brick-tint px-4 py-1.5 text-xs font-semibold text-brick hover:bg-brick hover:text-white">Delete</button>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function TeachersTab({ teachers, reload }: { teachers:Teacher[]; reload:()=>void }) {
   const [semester, setSemester] = useState("1"); 
   const [error, setError] = useState("");
+  const [editingId, setEditingId] = useState<number|null>(null);
+  const [edit, setEdit] = useState({firstName:"", lastName:"", phone:""});
   
   async function assign(id:number) {
     setError("");
     try { await api.assignClassTeacher(id, Number(semester)); reload(); }
     catch(e) { setError(e instanceof ApiError ? e.message : "Unable to assign Class Teacher."); }
   }
+  async function removeCT(id:number){
+    setError("");
+    try { await api.removeClassTeacher(id); reload(); } catch(e){ setError(e instanceof ApiError ? e.message : "Unable to remove Class Teacher.");}
+  }
+  function startEdit(t:Teacher){ setEditingId(t.id); setEdit({firstName:t.firstName,lastName:t.lastName,phone:t.phone??""}); setError("");}
+  async function save(){
+    if(editingId==null) return;
+    setError("");
+    try { await api.updateTeacher(editingId, {firstName:edit.firstName,lastName:edit.lastName,phone:edit.phone}); setEditingId(null); reload(); } catch(e){ setError(e instanceof ApiError ? e.message : "Unable to update.");}
+  }
   
   return (
     <div className="campus-card p-6 lg:p-8 campus-reveal">
       <div className="mb-6 border-b border-hairline pb-4">
         <h2 className="text-xl font-semibold text-ink">Teachers & Class Assignments</h2>
-        <p className="mt-1 text-sm text-ink-soft">Assign one Class Teacher for each semester.</p>
+        <p className="mt-1 text-sm text-ink-soft">Assign one Class Teacher for each semester. HOD can edit teachers in own department.</p>
       </div>
       {error ? <p className="mb-4 text-sm font-medium text-brick bg-brick-tint p-3 rounded-lg">{error}</p> : null}
       <div className="space-y-4">
         {teachers.map(t => (
-          <div key={t.id} className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-hairline bg-paper/50 p-5 hover:border-slate-300 transition-colors">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <p className="font-semibold text-ink">{t.firstName} {t.lastName}</p>
-                {t.hod ? <span className="rounded-full bg-brass-tint border border-brass/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brass">HOD</span> : null}
+          <div key={t.id} className="flex flex-col gap-3 rounded-xl border border-hairline bg-paper/50 p-5 hover:border-slate-300 transition-colors">
+            {editingId===t.id ? (
+              <div className="space-y-3">
+                <div className="grid sm:grid-cols-3 gap-3">
+                  <Input label="First Name" value={edit.firstName} onChange={e=>setEdit({...edit,firstName:e.target.value})}/>
+                  <Input label="Last Name" value={edit.lastName} onChange={e=>setEdit({...edit,lastName:e.target.value})}/>
+                  <Input label="Phone" value={edit.phone} onChange={e=>setEdit({...edit,phone:e.target.value})}/>
+                </div>
+                <div className="flex gap-2">
+                  <Button className="bg-brass text-white text-xs px-4 py-1.5" onClick={save}>Save</Button>
+                  <Button className="bg-white border border-hairline text-xs px-4 py-1.5" onClick={()=>setEditingId(null)}>Cancel</Button>
+                </div>
               </div>
-              <p className="text-xs text-ink-soft">{t.teacherId} · {t.email}</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              {t.classTeacher ? (
-                <span className="rounded-full bg-moss-tint border border-moss/20 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-moss">
-                  Class Teacher · Sem {t.classTeacherSemester}
-                </span>
-              ) : null}
-              <div className="flex items-end gap-2 bg-white p-2 rounded-lg border border-hairline">
-                <Select label="Semester" className="py-1.5 text-sm" value={semester} onChange={e=>setSemester(e.target.value)}>{SEMESTERS.map(x=><option key={x}>{x}</option>)}</Select>
-                <Button className="bg-slate-tint text-ink hover:bg-hairline text-sm px-4 py-1.5" onClick={()=>assign(t.id)}>Assign</Button>
+            ) : (
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="font-semibold text-ink">{t.firstName} {t.lastName}</p>
+                    {t.hod ? <span className="rounded-full bg-brass-tint border border-brass/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brass">HOD</span> : null}
+                  </div>
+                  <p className="text-xs text-ink-soft">{t.teacherId} · {t.email} {t.phone ? `· ${t.phone}` : ""}</p>
+                  {t.classTeacher ? (
+                    <span className="mt-1 inline-flex rounded-full bg-moss-tint border border-moss/20 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-moss">
+                      Class Teacher · Sem {t.classTeacherSemester}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <button onClick={()=>startEdit(t)} className="rounded-lg border border-hairline bg-white px-3 py-1.5 text-xs font-semibold text-ink hover:bg-slate-tint">Edit</button>
+                  {t.classTeacher ? <button onClick={()=>removeCT(t.id)} className="rounded-lg border border-brick/20 bg-brick-tint px-3 py-1.5 text-xs font-semibold text-brick hover:bg-brick hover:text-white">Remove CT</button> : null}
+                  <div className="flex items-end gap-2 bg-white p-2 rounded-lg border border-hairline">
+                    <Select label="Semester" className="py-1.5 text-sm" value={semester} onChange={e=>setSemester(e.target.value)}>{SEMESTERS.map(x=><option key={x}>{x}</option>)}</Select>
+                    <Button className="bg-slate-tint text-ink hover:bg-hairline text-sm px-4 py-1.5" onClick={()=>assign(t.id)}>Assign</Button>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         ))}
       </div>
@@ -315,7 +494,7 @@ export default function DirectoryPage() {
   }
   useEffect(() => { reload() }, [session?.role]);
 
-  const tabs = session?.role === "PRINCIPAL" ? ["Departments", "HOD Management"] : ["Subjects", "Teachers", "Faculty Assignments", "Students"];
+  const tabs = session?.role === "PRINCIPAL" ? ["Departments", "HOD Management", "Teachers"] : ["Subjects", "Teachers", "Faculty Assignments", "Students"];
   useEffect(() => { 
     if (session?.role === "PRINCIPAL") setTab("Departments"); 
     else if (session?.role === "HOD") setTab("Subjects"); 
@@ -343,7 +522,7 @@ export default function DirectoryPage() {
       <header className="mb-6">
         <h1 className="campus-gradient-text pb-1">{session.role === "PRINCIPAL" ? "Administration" : "Department Management"}</h1>
         <p className="mt-2 text-ink-soft text-base">
-          {session.role === "PRINCIPAL" ? "Create departments and assign the single HOD for each department." : "Manage only your department structure."}
+          {session.role === "PRINCIPAL" ? "Create departments, edit them, manage HODs and all teachers — all within your single college." : "Manage only your department structure."}
         </p>
       </header>
       
@@ -362,8 +541,9 @@ export default function DirectoryPage() {
       </div>
       
       <div className="pt-2">
-        {session.role === "PRINCIPAL" && tab === "Departments" ? <DepartmentsTab departments={departments} canCreate reload={reload}/> : null}
+        {session.role === "PRINCIPAL" && tab === "Departments" ? <DepartmentsTab departments={departments} canCreate={true} canEdit={true} reload={reload}/> : null}
         {session.role === "PRINCIPAL" && tab === "HOD Management" ? <HodManagementTab departments={departments} teachers={teachers} reload={reload}/> : null}
+        {session.role === "PRINCIPAL" && tab === "Teachers" ? <PrincipalTeachersTab teachers={teachers} departments={departments} reload={reload}/> : null}
         {session.role === "HOD" && tab === "Subjects" ? <SubjectsTab subjects={mySubjects} departmentId={session.departmentId!} reload={reload}/> : null}
         {session.role === "HOD" && tab === "Teachers" ? <TeachersTab teachers={myTeachers} reload={reload}/> : null}
         {session.role === "HOD" && tab === "Faculty Assignments" ? <FacultyAssignmentsTab assignments={myAssignments} teachers={myTeachers} subjects={mySubjects} reload={reload}/> : null}

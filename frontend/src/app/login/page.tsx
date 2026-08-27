@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { clearSession } from "@/lib/auth";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Seal } from "@/components/ui/Seal";
@@ -14,6 +15,24 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // Aggressively clear any lingering session so login never auto-redirects to previous account
+  useEffect(() => {
+    try {
+      clearSession();
+      localStorage.clear();
+      sessionStorage.clear();
+      ["token","role","user_data","campusos_session","campusos_last_route"].forEach(k => {
+        try { localStorage.removeItem(k); sessionStorage.removeItem(k); } catch {}
+      });
+      // clear per-account last routes
+      try {
+        Object.keys(localStorage).forEach(k => {
+          if (k.startsWith("campusos_last_route:")) localStorage.removeItem(k);
+        });
+      } catch {}
+    } catch {}
+  }, []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();

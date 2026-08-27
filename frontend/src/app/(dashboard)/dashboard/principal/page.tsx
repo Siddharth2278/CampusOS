@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
+import { clearSession } from "@/lib/auth";
 import type { PrincipalDashboard } from "@/lib/types";
 
 export default function PrincipalDashboardPage() {
+  const router = useRouter();
   const [dashboard, setDashboard] = useState<PrincipalDashboard | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     api
@@ -77,7 +81,6 @@ export default function PrincipalDashboardPage() {
         <ul className="space-y-3 text-sm text-ink font-medium">
           <li className="flex items-center gap-3 rounded-xl border border-hairline bg-paper/50 px-5 py-4">
             <span className="flex items-center justify-center w-8 h-8 rounded-full bg-brick-tint text-brick font-bold">!</span>
-            {/* FIXED TEXT HERE: Changed "student" to "HOD" */}
             <span><strong className="text-brick">{dashboard.pendingLeaveApprovals}</strong> HOD leave requests need your approval.</span>
           </li>
           <li className="flex items-center gap-3 rounded-xl border border-hairline bg-paper/50 px-5 py-4">
@@ -89,6 +92,26 @@ export default function PrincipalDashboardPage() {
             <span><strong className="text-moss">{dashboard.totalStudents}</strong> students and <strong className="text-moss">{dashboard.totalTeachers}</strong> teachers are registered across the campus.</span>
           </li>
         </ul>
+      </div>
+
+      <div className="rounded-xl border border-brick/20 bg-brick-tint p-6">
+        <h3 className="text-sm font-bold text-brick">Principal Self-Delete — Reset Single-College System</h3>
+        <p className="mt-1 text-xs font-medium text-brick/80">Deletes your Principal account and ALL college data (departments, HODs, teachers, students). After this, the Register page will show Principal option again for a new college setup. This action cannot be undone.</p>
+        <button
+          onClick={async () => {
+            const ok = confirm("Delete Principal account and reset entire college? All data will be lost!");
+            if (!ok) return;
+            const c = prompt("Type DELETE to confirm");
+            if (c !== "DELETE") return;
+            setDeleting(true);
+            try { await api.deleteOwnAccount(); clearSession(); alert("Reset complete. Redirecting to Register."); router.push("/register"); } catch (e) { alert(e instanceof ApiError ? e.message : "Delete failed"); } finally { setDeleting(false); }
+          }}
+          disabled={deleting}
+          className="mt-4 rounded-lg bg-brick px-6 py-2.5 text-sm font-semibold text-white hover:bg-brick/90 disabled:opacity-50"
+        >
+          {deleting ? "Resetting..." : "Delete My Principal Account & Reset College"}
+        </button>
+        <p className="mt-2 text-[11px] text-brick/70">Alternative: use Profile → Danger Zone (same action) or run <code className="px-1 py-0.5 bg-white rounded">database/RESET_ALL_DATA.sql</code></p>
       </div>
     </div>
   );

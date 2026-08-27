@@ -42,7 +42,7 @@ public class AssignmentService {
     private final AssignmentSubmissionRepository submissionRepository;
     private final FacultyAssignmentRepository facultyAssignmentRepository;
     private final UserRepository userRepository;
-    private final FileStorageService fileStorageService;
+    private final CloudinaryService cloudinaryService;
 
   public AssignmentService(
         AssignmentRepository assignmentRepository,
@@ -51,7 +51,7 @@ public class AssignmentService {
         StudentRepository studentRepository,
         AssignmentSubmissionRepository submissionRepository,
         NotificationService notificationService, FacultyAssignmentRepository facultyAssignmentRepository, UserRepository userRepository,
-        FileStorageService fileStorageService) {
+        CloudinaryService cloudinaryService) {
 
     this.assignmentRepository = assignmentRepository;
     this.subjectRepository = subjectRepository;
@@ -61,7 +61,7 @@ public class AssignmentService {
     this.notificationService = notificationService;
     this.facultyAssignmentRepository = facultyAssignmentRepository;
     this.userRepository = userRepository;
-    this.fileStorageService = fileStorageService;
+    this.cloudinaryService = cloudinaryService;
 }
 
 public AssignmentResponseDto createAssignment(
@@ -132,7 +132,7 @@ public AssignmentResponseDto createAssignment(
   if (attachment != null && !attachment.isEmpty()) {
 
     try {
-        String url = fileStorageService.upload(attachment, "campusos/assignments");
+        String url = cloudinaryService.upload(attachment, "campusos/assignments");
         assignment.setAttachmentUrl(url);
         assignment.setAttachmentFileName(attachment.getOriginalFilename());
 

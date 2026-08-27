@@ -254,6 +254,34 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 
+  // Dedicated mobile drawer profile footer — Avatar, Full Name, Role, View Profile + Log Out
+  const mobileProfileFooter = (
+    <div className="rounded-2xl border border-hairline bg-paper/80 p-4 shadow-sm">
+      <div className="flex items-center gap-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brass to-brass-light text-sm font-bold text-white shadow-sm">
+          {(session?.displayName ?? session?.email ?? "U").slice(0, 1).toUpperCase()}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-ink">{session?.displayName ?? session?.email}</p>
+          <p className="truncate text-xs font-medium text-slate">{session ? roleLabel(session.role) : ""}</p>
+          <p className="truncate text-[11px] text-ink-soft">{session?.email}</p>
+        </div>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <Link
+          href="/profile"
+          onClick={() => setDrawerOpen(false)}
+          className="inline-flex items-center justify-center rounded-xl border border-hairline bg-white px-3 py-2.5 text-xs font-semibold text-ink hover:bg-paper transition"
+        >
+          View Profile
+        </Link>
+        <Button variant="ghost" className="w-full justify-center rounded-xl bg-maroon text-white hover:bg-maroon/90 text-xs font-semibold py-2.5" onClick={logout}>
+          Log Out
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-paper">
       <div className="mx-auto flex min-h-screen max-w-7xl">
@@ -305,7 +333,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               variant="drawer"
             />
           </div>
-          <div className="pt-6">{accountCard}</div>
+          <div className="pt-6">{mobileProfileFooter}</div>
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
@@ -380,18 +408,52 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               <Seal size={24} />
               <span className="font-display font-semibold text-ink">CampusOS</span>
             </Link>
-            <Link
-              href="/notifications"
-              className="relative rounded-md p-2 text-ink-soft hover:bg-paper"
-              aria-label="Notifications"
-            >
-              <BellIcon />
-              {unread > 0 ? (
-                <span className="absolute right-0.5 top-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-maroon text-[10px] font-semibold text-white">
-                  {unread > 9 ? "9+" : unread}
-                </span>
-              ) : null}
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/notifications"
+                className="relative rounded-md p-2 text-ink-soft hover:bg-paper"
+                aria-label="Notifications"
+              >
+                <BellIcon />
+                {unread > 0 ? (
+                  <span className="absolute right-0.5 top-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-maroon text-[10px] font-semibold text-white">
+                    {unread > 9 ? "9+" : unread}
+                  </span>
+                ) : null}
+              </Link>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setAccountOpen((v) => !v)}
+                  className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brass to-brass-light text-xs font-bold text-white shadow-sm"
+                  aria-expanded={accountOpen}
+                  aria-label="Open profile menu"
+                >
+                  {(session?.displayName ?? session?.email ?? "U").slice(0, 1).toUpperCase()}
+                </button>
+                {accountOpen ? (
+                  <div className="absolute right-0 top-[calc(100%+10px)] z-50 w-64 overflow-hidden rounded-2xl border border-hairline bg-surface p-2 shadow-lg">
+                    <div className="border-b border-hairline px-3 py-3">
+                      <p className="truncate text-sm font-semibold text-ink">{session?.displayName ?? session?.email}</p>
+                      <p className="mt-0.5 truncate text-xs text-slate">{session?.email}</p>
+                      <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">{session ? roleLabel(session.role) : ""}</p>
+                    </div>
+                    <Link href="/profile" onClick={() => setAccountOpen(false)} className="mt-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-ink-soft hover:bg-slate-tint hover:text-ink">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-tint">◎</span>
+                      My Profile
+                    </Link>
+                    <Link href="/settings/password" onClick={() => setAccountOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-ink-soft hover:bg-slate-tint hover:text-ink">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-tint">⌁</span>
+                      Change password
+                    </Link>
+                    <button onClick={logout} className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-maroon hover:bg-maroon-tint">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-maroon-tint">↗</span>
+                      Sign out
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            </div>
           </header>
           
           <main className="campus-page flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">

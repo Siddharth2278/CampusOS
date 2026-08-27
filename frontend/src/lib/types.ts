@@ -32,17 +32,6 @@ export interface RegisterRequest {
   semester?: number;
   admissionYear?: number;
   departmentId?: number;
-  collegeName?: string;
-  collegeType?: "DIPLOMA" | "DEGREE";
-}
-
-export type CollegeType = "DIPLOMA" | "DEGREE";
-
-export interface College {
-  id: number;
-  name: string;
-  type: CollegeType;
-  totalSemesters: number;
 }
 
 export interface Department {
@@ -51,7 +40,6 @@ export interface Department {
   code: string;
   description?: string;
   hod?: Teacher;
-  college?: College;
 }
 
 export interface Student {
@@ -73,6 +61,7 @@ export interface Teacher {
   firstName: string;
   lastName: string;
   email: string;
+  phone?: string;
   department?: Department;
   classTeacher?: boolean;
   classTeacherSemester?: number;

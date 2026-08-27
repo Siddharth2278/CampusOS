@@ -41,7 +41,7 @@ private final UserRepository userRepository;
 private final StudentRepository studentRepository;
 private final TeacherRepository teacherRepository;
 private final NotificationService notificationService;
-private final FileStorageService fileStorageService;
+private final CloudinaryService cloudinaryService;
 
 public NoticeService(
             NoticeRepository noticeRepository,
@@ -50,7 +50,7 @@ public NoticeService(
             StudentRepository studentRepository,
             TeacherRepository teacherRepository,                                
             NotificationService notificationService,
-            FileStorageService fileStorageService) {
+            CloudinaryService cloudinaryService) {
 
         this.noticeRepository = noticeRepository;
         this.departmentRepository = departmentRepository;
@@ -58,7 +58,7 @@ public NoticeService(
         this.studentRepository = studentRepository;
         this.teacherRepository = teacherRepository;
         this.notificationService = notificationService;
-        this.fileStorageService = fileStorageService;
+        this.cloudinaryService = cloudinaryService;
     }
 
     // ===========================
@@ -156,7 +156,7 @@ public NoticeService(
 
         if (attachment != null && !attachment.isEmpty()) {
             try {
-                String url = fileStorageService.upload(attachment, "campusos/notices");
+                String url = cloudinaryService.upload(attachment, "campusos/notices");
                 notice.setAttachmentUrl(url);
                 notice.setAttachmentFileName(attachment.getOriginalFilename());
             } catch (Exception e) {
@@ -303,7 +303,7 @@ return "Notice created successfully."; }
 
         if (attachment != null && !attachment.isEmpty()) {
             try {
-                String url = fileStorageService.upload(attachment, "campusos/notices");
+                String url = cloudinaryService.upload(attachment, "campusos/notices");
                 notice.setAttachmentUrl(url);
                 notice.setAttachmentFileName(attachment.getOriginalFilename());
             } catch (Exception e) {

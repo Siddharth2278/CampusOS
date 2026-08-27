@@ -45,8 +45,4 @@ public class User {
 
     @Column(length = 255)
     private String lastRoute;
-
-    @ManyToOne
-    @JoinColumn(name = "college_id")
-    private College college;
 }

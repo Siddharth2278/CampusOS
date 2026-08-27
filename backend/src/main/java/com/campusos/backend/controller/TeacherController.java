@@ -37,4 +37,25 @@ public class TeacherController {
                                       @AuthenticationPrincipal String email) {
         return service.assignClassTeacher(id, semester, email);
     }
+
+    @PutMapping("/{id}")
+    public Teacher updateTeacher(@PathVariable Long id, @RequestBody Teacher dto, @AuthenticationPrincipal String email) {
+        return service.updateTeacher(id, dto, email);
+    }
+
+    @DeleteMapping("/{id}")
+    public String deleteTeacher(@PathVariable Long id, @AuthenticationPrincipal String email) {
+        service.deleteTeacher(id, email);
+        return "Teacher deleted";
+    }
+
+    @DeleteMapping("/hod/{departmentId}")
+    public Teacher removeHod(@PathVariable Long departmentId, @AuthenticationPrincipal String email) {
+        return service.removeHod(departmentId, email);
+    }
+
+    @DeleteMapping("/{id}/class-teacher")
+    public Teacher removeClassTeacher(@PathVariable Long id, @AuthenticationPrincipal String email) {
+        return service.removeClassTeacher(id, email);
+    }
 }

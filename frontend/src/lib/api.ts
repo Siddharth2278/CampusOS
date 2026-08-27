@@ -6,7 +6,6 @@ import type {
   AssignmentSubmissionStatus,
   AttendanceRecord,
   AttendanceRequest,
-  College,
   Department,
   Exam,
   ExamRequest,
@@ -138,6 +137,8 @@ export const api = {
 
   registerPrincipal: (body: RegisterRequest) =>
     apiRequest<string>("/api/auth/register/principal", { method: "POST", body }),
+  principalExists: () => apiRequest<boolean>("/api/auth/principal-exists"),
+  deleteOwnAccount: () => apiRequest<string>("/api/auth/me", { method: "DELETE" }),
   changePassword: (body: { currentPassword: string; newPassword: string }) =>
     apiRequest<string>("/api/auth/change-password", { method: "POST", body }),
 
@@ -157,14 +158,14 @@ export const api = {
       body,
     }),
 
-  // ---------- Directory ----------
-  getDepartments: (collegeId?: number) =>
-    apiRequest<Department[]>(
-      collegeId ? `/api/departments?collegeId=${collegeId}` : "/api/departments"
-    ),
-  getColleges: () => apiRequest<College[]>("/api/colleges"),
+  // ---------- Directory (single institution) ----------
+  getDepartments: () => apiRequest<Department[]>("/api/departments"),
   createDepartment: (body: { name: string; code: string; description?: string }) =>
     apiRequest<Department>("/api/departments", { method: "POST", body }),
+  updateDepartment: (id: number, body: { name: string; code: string; description?: string }) =>
+    apiRequest<Department>(`/api/departments/${id}`, { method: "PUT", body }),
+  deleteDepartment: (id: number) =>
+    apiRequest<string>(`/api/departments/${id}`, { method: "DELETE" }),
 
   getSubjects: () => apiRequest<Subject[]>("/api/subjects"),
   createSubject: (body: {
@@ -182,11 +183,19 @@ export const api = {
     apiRequest<Teacher[]>("/api/teachers/hod-candidates", { query: { departmentId } }),
   makeHod: (teacherId: number) =>
     apiRequest<Teacher>(`/api/teachers/${teacherId}/make-hod`, { method: "PUT" }),
+  removeHod: (departmentId: number) =>
+    apiRequest<Teacher>(`/api/teachers/hod/${departmentId}`, { method: "DELETE" }),
+  updateTeacher: (teacherId: number, body: { firstName?: string; lastName?: string; phone?: string; department?: { id: number } }) =>
+    apiRequest<Teacher>(`/api/teachers/${teacherId}`, { method: "PUT", body }),
+  deleteTeacher: (teacherId: number) =>
+    apiRequest<string>(`/api/teachers/${teacherId}`, { method: "DELETE" }),
   assignClassTeacher: (teacherId: number, semester: number) =>
     apiRequest<Teacher>(`/api/teachers/${teacherId}/class-teacher`, {
       method: "PUT",
       query: { semester },
     }),
+  removeClassTeacher: (teacherId: number) =>
+    apiRequest<Teacher>(`/api/teachers/${teacherId}/class-teacher`, { method: "DELETE" }),
 
   // ---------- Approvals ----------
   pendingTeachers: () => apiRequest<Teacher[]>("/api/approvals/teachers"),

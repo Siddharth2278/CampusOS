@@ -59,6 +59,17 @@ public class AuthController {
         return ResponseEntity.ok(authService.getCurrentUser(email));
     }
 
+    @GetMapping("/principal-exists")
+    public ResponseEntity<Boolean> principalExists() {
+        return ResponseEntity.ok(authService.principalExists());
+    }
+
+    @DeleteMapping("/me")
+    public ResponseEntity<String> deleteOwnAccount(@AuthenticationPrincipal String email) {
+        authService.deleteOwnAccount(email);
+        return ResponseEntity.ok("Principal account and college data deleted. System reset.");
+    }
+
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
 

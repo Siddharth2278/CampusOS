@@ -153,7 +153,7 @@ export default function RegisterPage() {
                     <Input label="Enrollment Number" required value={form.enrollmentNumber} onChange={(e) => updateField("enrollmentNumber", e.target.value)} />
                     <div className="grid gap-5 sm:grid-cols-2">
                       <Input label="Roll Number" type="number" required value={form.rollNumber} onChange={(e) => updateField("rollNumber", e.target.value)} />
-                      <Input label={`Semester (1-8)`} type="number" min={1} max={8} required value={form.semester} onChange={(e) => updateField("semester", e.target.value)} />
+                      <Input label={`Semester (1-6)`} type="number" min={1} max={6} required value={form.semester} onChange={(e) => updateField("semester", e.target.value)} />
                     </div>
                     <Input label="Admission Year" type="number" required value={form.admissionYear} onChange={(e) => updateField("admissionYear", e.target.value)} />
                   </div>

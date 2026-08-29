@@ -86,12 +86,18 @@ public User register(RegisterRequest request, Role role) {
         throw new RuntimeException("A Principal already exists. Only one Principal is allowed.");
     }
 
+    // Phone is mandatory for every role and must be exactly 10 digits.
+    if (request.getPhone() == null || !request.getPhone().matches("\\d{10}")) {
+        throw new RuntimeException("Phone number is required and must be exactly 10 digits.");
+    }
+
     User user = new User();
 
     user.setFirstName(request.getFirstName());
     user.setLastName(request.getLastName());
     user.setEmail(request.getEmail());
     user.setPassword(passwordEncoder.encode(request.getPassword()));
+    user.setPhone(request.getPhone());
     user.setRole(role);
     user.setStatus(role == Role.PRINCIPAL ? UserStatus.APPROVED : UserStatus.PENDING);
 
@@ -119,6 +125,7 @@ public User register(RegisterRequest request, Role role) {
         student.setFirstName(request.getFirstName());
         student.setLastName(request.getLastName());
         student.setEmail(request.getEmail());
+        student.setPhone(request.getPhone());
 
         studentRepository.save(student);
     }
@@ -135,6 +142,7 @@ public User register(RegisterRequest request, Role role) {
         teacher.setFirstName(request.getFirstName());
         teacher.setLastName(request.getLastName());
         teacher.setEmail(request.getEmail());
+        teacher.setPhone(request.getPhone());
         teacher.setDepartment(department);
         teacher.setHod(false);
         teacher.setUser(user);
@@ -165,11 +173,25 @@ public AuthMeResponse getCurrentUser(String email) {
         if (teacher.isPresent()) {
             profileId = teacher.get().getId();
             departmentId = teacher.get().getDepartment() != null ? teacher.get().getDepartment().getId() : null;
+            if (teacher.get().getClassTeacher() != null && teacher.get().getClassTeacher()
+                    && teacher.get().getClassTeacherSemester() != null) {
+                semester = teacher.get().getClassTeacherSemester();
+            }
+        }
+    }
+
+    boolean isClassTeacher = false;
+    Integer ctSemester = null;
+    if (user.getRole() == Role.TEACHER) {
+        Optional<Teacher> teacher = teacherRepository.findByUser(user);
+        if (teacher.isPresent() && Boolean.TRUE.equals(teacher.get().getClassTeacher())) {
+            isClassTeacher = true;
+            ctSemester = teacher.get().getClassTeacherSemester();
         }
     }
 
     return new AuthMeResponse(user.getId(), user.getEmail(), user.getFirstName(), user.getLastName(),
-            user.getRole(), profileId, departmentId, semester, user.getPhotoUrl());
+            user.getRole(), profileId, departmentId, semester, user.getPhotoUrl(), isClassTeacher, ctSemester);
 }
 
 public LoginResponse login(LoginRequest request) {
@@ -317,6 +339,18 @@ public void saveLastRoute(String email, String route) {
 
     public boolean principalExists() {
         return userRepository.countByRole(Role.PRINCIPAL) > 0;
+    }
+
+    /**
+     * Re-issues a JWT carrying the user's CURRENT role. Used after a role change
+     * (e.g. a teacher promoted to HOD) so the client's session/role stays in sync
+     * without forcing a full re-login.
+     */
+    public LoginResponse refresh(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found."));
+        String token = jwtService.generateToken(user.getEmail(), user.getRole());
+        return new LoginResponse(token, user.getRole().name(), "Refreshed");
     }
 
     @Transactional

@@ -48,6 +48,8 @@ export async function login(email: string, password: string): Promise<AuthSessio
     semester: me.semester,
     displayName: `${me.firstName} ${me.lastName}`,
     photoUrl: me.photoUrl,
+    classTeacher: me.classTeacher,
+    classTeacherSemester: me.classTeacherSemester,
   };
 
   saveSession(session);

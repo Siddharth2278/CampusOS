@@ -24,7 +24,7 @@ export default function RegisterPage() {
   const [hasPrincipal, setHasPrincipal] = useState(false);
 
   const [form, setForm] = useState({
-    firstName: "", lastName: "", email: "", password: "",
+    firstName: "", lastName: "", email: "", password: "", phone: "",
     enrollmentNumber: "", rollNumber: "", semester: "1",
     admissionYear: String(new Date().getFullYear()), departmentId: "",
   });
@@ -65,10 +65,11 @@ export default function RegisterPage() {
       return;
     }
     if (role !== "PRINCIPAL" && !form.departmentId) { setError("Please select your department."); return; }
+    if (!/^\d{10}$/.test(form.phone)) { setError("Phone number is required and must be exactly 10 digits."); return; }
 
     setSubmitting(true);
     const payload = {
-      firstName: form.firstName, lastName: form.lastName, email: form.email, password: form.password,
+      firstName: form.firstName, lastName: form.lastName, email: form.email, password: form.password, phone: form.phone,
       ...(role === "STUDENT" ? { enrollmentNumber: form.enrollmentNumber, rollNumber: Number(form.rollNumber), semester: Number(form.semester), admissionYear: Number(form.admissionYear), departmentId: Number(form.departmentId) } : {}),
       ...(role === "TEACHER" ? { departmentId: Number(form.departmentId) } : {}),
     };
@@ -126,10 +127,11 @@ export default function RegisterPage() {
             <Input label="Last Name" required value={form.lastName} onChange={(e) => updateField("lastName", e.target.value)} />
           </div>
 
-          <div className="mt-5 space-y-5">
-            <Input label="Email Address" type="email" required value={form.email} onChange={(e) => updateField("email", e.target.value)} />
-            <Input label="Password" type="password" required minLength={6} value={form.password} onChange={(e) => updateField("password", e.target.value)} />
-          </div>
+            <div className="mt-5 space-y-5">
+              <Input label="Email Address" type="email" required value={form.email} onChange={(e) => updateField("email", e.target.value)} />
+              <Input label="Password" type="password" required minLength={6} value={form.password} onChange={(e) => updateField("password", e.target.value)} />
+              <Input label="Phone Number" type="tel" required placeholder="10-digit mobile number" value={form.phone} onChange={(e) => updateField("phone", e.target.value.replace(/\D/g, "").slice(0, 10))} />
+            </div>
 
           <div className="mt-6 pt-6 border-t border-hairline/60">
             {role === "PRINCIPAL" ? (

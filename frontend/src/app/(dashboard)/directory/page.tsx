@@ -444,25 +444,126 @@ function FacultyAssignmentsTab({ assignments,teachers,subjects,reload }: { assig
   );
 }
 
-function StudentsTab({students}:{students:Student[]}) {
-  const [q, setQ] = useState(""); 
+function StudentsTab({ students, showPhone, canManage, canBulk, title, departmentId }: { students: Student[]; showPhone: boolean; canManage: boolean; canBulk?: boolean; title?: string; departmentId?: number }) {
+  const [q, setQ] = useState("");
+  const [busyId, setBusyId] = useState<number | null>(null);
+  const [error, setError] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [edit, setEdit] = useState({ firstName: "", lastName: "", phone: "", semester: "" });
+  const [bulkSemester, setBulkSemester] = useState("1");
+  const [bulkMsg, setBulkMsg] = useState("");
+
   const filtered = useMemo(() => {
-    const x = q.toLowerCase(); 
-    return students.filter(s => `${s.firstName} ${s.lastName} ${s.enrollmentNumber}`.toLowerCase().includes(x));
-  }, [q,students]);
-  
+    const x = q.toLowerCase();
+    return students.filter(s =>
+      `${s.firstName} ${s.lastName} ${s.enrollmentNumber} ${s.phone ?? ""}`.toLowerCase().includes(x));
+  }, [q, students]);
+
+  async function promote(s: Student) {
+    if (!confirm(`Promote ${s.firstName} ${s.lastName} to semester ${s.semester + 1}?`)) return;
+    setBusyId(s.id); setError("");
+    try { await api.promoteStudentSemester(s.id); alert("Student promoted to next semester."); }
+    catch (e) { setError(e instanceof ApiError ? e.message : "Unable to promote student."); }
+    finally { setBusyId(null); }
+  }
+  async function remove(s: Student) {
+    if (!confirm(`Remove ${s.firstName} ${s.lastName}? This deletes their record and user account.`)) return;
+    setBusyId(s.id); setError("");
+    try { await api.deleteStudent(s.id); alert("Student removed."); }
+    catch (e) { setError(e instanceof ApiError ? e.message : "Unable to remove student."); }
+    finally { setBusyId(null); }
+  }
+  function startEdit(s: Student) {
+    setEditingId(s.id);
+    setEdit({ firstName: s.firstName, lastName: s.lastName, phone: s.phone ?? "", semester: String(s.semester) });
+    setError("");
+  }
+  async function saveEdit() {
+    if (editingId == null) return;
+    setError("");
+    try {
+      await api.updateStudent(editingId, {
+        firstName: edit.firstName, lastName: edit.lastName, phone: edit.phone, semester: Number(edit.semester),
+      });
+      setEditingId(null); alert("Student updated.");
+    } catch (e) { setError(e instanceof ApiError ? e.message : "Unable to update student."); }
+  }
+  async function bulkPromote() {
+    if (departmentId == null) return;
+    if (!confirm(`Promote ALL students of semester ${bulkSemester} to the next semester?`)) return;
+    setError(""); setBulkMsg("");
+    try {
+      const msg = await api.promoteStudentSemesterBulk(departmentId, Number(bulkSemester));
+      setBulkMsg(msg); alert(msg);
+    } catch (e) { setError(e instanceof ApiError ? e.message : "Unable to bulk promote."); }
+  }
+
   return (
     <div className="campus-card p-6 lg:p-8 campus-reveal">
-      <h2 className="text-xl font-semibold text-ink mb-6 pb-4 border-b border-hairline">Department Students</h2>
-      <Input label="Search Students" placeholder="Search by name or enrollment number..." value={q} onChange={e=>setQ(e.target.value)} />
-      <div className="mt-6 grid sm:grid-cols-2 md:grid-cols-3 gap-3">
-        {filtered.map(s => (
-          <div key={s.id} className="rounded-xl border border-hairline bg-paper/50 p-4">
-            <p className="font-semibold text-ink">{s.firstName} {s.lastName}</p>
-            <p className="text-xs font-medium text-slate mt-1">{s.enrollmentNumber} · Semester {s.semester}</p>
-          </div>
-        ))}
-      </div>
+      <h2 className="text-xl font-semibold text-ink mb-6 pb-4 border-b border-hairline">{title ?? "Department Students"}</h2>
+
+      {canBulk && departmentId != null ? (
+        <div className="mb-6 flex flex-wrap items-end gap-3 rounded-xl border border-hairline bg-slate-tint/50 p-4">
+          <Select label="Promote whole semester" value={bulkSemester} onChange={e => setBulkSemester(e.target.value)}>
+            {[1, 2, 3, 4, 5].map(x => <option key={x} value={x}>Semester {x}</option>)}
+          </Select>
+          <Button className="bg-brass text-white hover:bg-brass-light" onClick={bulkPromote}>Promote Semester</Button>
+          {bulkMsg ? <span className="text-sm font-medium text-moss">{bulkMsg}</span> : null}
+        </div>
+      ) : null}
+
+      <Input label={canManage ? "Search Students (name, enrollment or phone)" : "Search Students"} placeholder="Search..." value={q} onChange={e => setQ(e.target.value)} />
+      {error ? <p className="mt-4 text-sm font-medium text-brick bg-brick-tint p-3 rounded-lg">{error}</p> : null}
+      {filtered.length === 0 ? (
+        <p className="text-sm font-medium text-slate text-center py-8">No students found.</p>
+      ) : (
+        <div className="mt-6 grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {filtered.map(s => (
+            <div key={s.id} className="flex flex-col gap-3 rounded-xl border border-hairline bg-paper/50 p-4">
+              {editingId === s.id ? (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input label="First" value={edit.firstName} onChange={e => setEdit({ ...edit, firstName: e.target.value })} />
+                    <Input label="Last" value={edit.lastName} onChange={e => setEdit({ ...edit, lastName: e.target.value })} />
+                  </div>
+                  <Input label="Phone (10 digits)" value={edit.phone} onChange={e => setEdit({ ...edit, phone: e.target.value })} />
+                  <Select label="Semester" value={edit.semester} onChange={e => setEdit({ ...edit, semester: e.target.value })}>
+                    {[1, 2, 3, 4, 5, 6].map(x => <option key={x} value={x}>{x}</option>)}
+                  </Select>
+                  <div className="flex gap-2">
+                    <Button className="bg-brass text-white text-xs px-4 py-1.5" onClick={saveEdit}>Save</Button>
+                    <Button className="bg-white border border-hairline text-xs px-4 py-1.5" onClick={() => setEditingId(null)}>Cancel</Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <p className="font-semibold text-ink">{s.firstName} {s.lastName}</p>
+                    <p className="text-xs font-medium text-slate mt-1">{s.enrollmentNumber} · Sem {s.semester}</p>
+                    {showPhone ? (
+                      <p className="text-xs font-medium text-slate mt-0.5">📞 {s.phone || "—"}</p>
+                    ) : null}
+                  </div>
+                  {canManage ? (
+                    <div className="flex flex-wrap gap-2 pt-1 border-t border-hairline/60">
+                      <button onClick={() => startEdit(s)} disabled={busyId === s.id}
+                        className="rounded-lg border border-hairline bg-white px-3 py-1 text-[11px] font-semibold text-ink hover:bg-slate-tint">Edit</button>
+                      <button onClick={() => promote(s)} disabled={busyId === s.id || s.semester >= 6}
+                        className="rounded-lg border border-brass/20 bg-brass-tint px-3 py-1 text-[11px] font-semibold text-brass hover:bg-brass hover:text-white disabled:opacity-40">
+                        {s.semester >= 6 ? "Final Sem" : "Promote"}
+                      </button>
+                      <button onClick={() => remove(s)} disabled={busyId === s.id}
+                        className="rounded-lg border border-brick/20 bg-brick-tint px-3 py-1 text-[11px] font-semibold text-brick hover:bg-brick hover:text-white disabled:opacity-40">
+                        Remove
+                      </button>
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -487,6 +588,9 @@ export default function DirectoryPage() {
       } else if (session?.role === "HOD") {
         const [d, t, s, st, a] = await Promise.all([api.getDepartments(), api.getTeachers(), api.getSubjects(), api.getStudents(), api.getFacultyAssignments()]);
         setDepartments(d); setTeachers(t); setSubjects(s); setStudents(st); setAssignments(a);
+      } else if (session?.role === "TEACHER" && session.classTeacher) {
+        const [d, st] = await Promise.all([api.getDepartments(), api.getStudents()]);
+        setDepartments(d); setStudents(st); setTeachers([]); setSubjects([]); setAssignments([]);
       }
     } catch (e) { 
       setLoadError(e instanceof ApiError ? e.message : "Unable to load directory data. Check that the backend is running and reachable."); 
@@ -494,22 +598,37 @@ export default function DirectoryPage() {
   }
   useEffect(() => { reload() }, [session?.role]);
 
-  const tabs = session?.role === "PRINCIPAL" ? ["Departments", "HOD Management", "Teachers"] : ["Subjects", "Teachers", "Faculty Assignments", "Students"];
-  useEffect(() => { 
-    if (session?.role === "PRINCIPAL") setTab("Departments"); 
-    else if (session?.role === "HOD") setTab("Subjects"); 
-  }, [session?.role]);
+  const isPrincipal = session?.role === "PRINCIPAL";
+  const isHod = session?.role === "HOD";
+  const isClassTeacher = session?.role === "TEACHER" && !!session.classTeacher;
 
-  if (!session || (session.role !== "PRINCIPAL" && session.role !== "HOD")) return (
+  const tabs = isPrincipal
+    ? ["Departments", "HOD Management", "Teachers", "Students"]
+    : isHod
+    ? ["Subjects", "Teachers", "Faculty Assignments", "Students"]
+    : isClassTeacher
+    ? ["My Class"]
+    : [];
+
+  useEffect(() => { 
+    if (isPrincipal) setTab("Departments"); 
+    else if (isHod) setTab("Subjects"); 
+    else if (isClassTeacher) setTab("My Class"); 
+  }, [isPrincipal, isHod, isClassTeacher]);
+
+  if (!session || (!isPrincipal && !isHod && !isClassTeacher)) return (
     <div className="campus-page max-w-5xl mx-auto py-6">
       <div className="campus-card bg-gold-tint border-gold/30 p-6 text-sm font-medium text-gold">This area is not available for your role.</div>
     </div>
   );
 
-  const myTeachers = session.role === "HOD" && session.departmentId ? teachers.filter(t => t.department?.id === session.departmentId) : teachers;
-  const myStudents = session.role === "HOD" && session.departmentId ? students.filter(s => s.department?.id === session.departmentId) : students;
-  const mySubjects = session.role === "HOD" && session.departmentId ? subjects.filter(s => s.department?.id === session.departmentId) : [];
-  const myAssignments = session.role === "HOD" && session.departmentId ? assignments.filter(a => a.teacher?.department?.id === session.departmentId) : [];
+  const myTeachers = isHod && session.departmentId ? teachers.filter(t => t.department?.id === session.departmentId) : teachers;
+  const myStudents = isHod && session.departmentId ? students.filter(s => s.department?.id === session.departmentId) : students;
+  const mySubjects = isHod && session.departmentId ? subjects.filter(s => s.department?.id === session.departmentId) : [];
+  const myAssignments = isHod && session.departmentId ? assignments.filter(a => a.teacher?.department?.id === session.departmentId) : [];
+  const classStudents = isClassTeacher && session.departmentId && session.classTeacherSemester != null
+    ? students.filter(s => s.department?.id === session.departmentId && s.semester === session.classTeacherSemester)
+    : [];
 
   if (loading) return (
     <div className="flex justify-center py-12">
@@ -520,9 +639,15 @@ export default function DirectoryPage() {
   return (
     <div className="campus-page space-y-8 max-w-5xl mx-auto py-6">
       <header className="mb-6">
-        <h1 className="campus-gradient-text pb-1">{session.role === "PRINCIPAL" ? "Administration" : "Department Management"}</h1>
+        <h1 className="campus-gradient-text pb-1">
+          {isPrincipal ? "Administration" : isHod ? "Department Management" : "My Class"}
+        </h1>
         <p className="mt-2 text-ink-soft text-base">
-          {session.role === "PRINCIPAL" ? "Create departments, edit them, manage HODs and all teachers — all within your single college." : "Manage only your department structure."}
+          {isPrincipal
+            ? "Create departments, edit them, manage HODs and all teachers — all within your single college."
+            : isHod
+            ? "Manage only your department structure, faculty, and students."
+            : `Students of your class (Semester ${session.classTeacherSemester}). Phone numbers are visible to you as their class teacher.`}
         </p>
       </header>
       
@@ -541,13 +666,15 @@ export default function DirectoryPage() {
       </div>
       
       <div className="pt-2">
-        {session.role === "PRINCIPAL" && tab === "Departments" ? <DepartmentsTab departments={departments} canCreate={true} canEdit={true} reload={reload}/> : null}
-        {session.role === "PRINCIPAL" && tab === "HOD Management" ? <HodManagementTab departments={departments} teachers={teachers} reload={reload}/> : null}
-        {session.role === "PRINCIPAL" && tab === "Teachers" ? <PrincipalTeachersTab teachers={teachers} departments={departments} reload={reload}/> : null}
-        {session.role === "HOD" && tab === "Subjects" ? <SubjectsTab subjects={mySubjects} departmentId={session.departmentId!} reload={reload}/> : null}
-        {session.role === "HOD" && tab === "Teachers" ? <TeachersTab teachers={myTeachers} reload={reload}/> : null}
-        {session.role === "HOD" && tab === "Faculty Assignments" ? <FacultyAssignmentsTab assignments={myAssignments} teachers={myTeachers} subjects={mySubjects} reload={reload}/> : null}
-        {session.role === "HOD" && tab === "Students" ? <StudentsTab students={myStudents}/> : null}
+        {isPrincipal && tab === "Departments" ? <DepartmentsTab departments={departments} canCreate={true} canEdit={true} reload={reload}/> : null}
+        {isPrincipal && tab === "HOD Management" ? <HodManagementTab departments={departments} teachers={teachers} reload={reload}/> : null}
+        {isPrincipal && tab === "Teachers" ? <PrincipalTeachersTab teachers={teachers} departments={departments} reload={reload}/> : null}
+        {isHod && tab === "Subjects" ? <SubjectsTab subjects={mySubjects} departmentId={session.departmentId!} reload={reload}/> : null}
+        {isHod && tab === "Teachers" ? <TeachersTab teachers={myTeachers} reload={reload}/> : null}
+        {isHod && tab === "Faculty Assignments" ? <FacultyAssignmentsTab assignments={myAssignments} teachers={myTeachers} subjects={mySubjects} reload={reload}/> : null}
+        {isPrincipal && tab === "Students" ? <StudentsTab students={students} showPhone={true} canManage={true} title="All Students" /> : null}
+        {isHod && tab === "Students" ? <StudentsTab students={myStudents} showPhone={true} canManage={true} canBulk={true} departmentId={session.departmentId!} title="Department Students" /> : null}
+        {isClassTeacher && tab === "My Class" ? <StudentsTab students={classStudents} showPhone={true} canManage={false} title={`My Class — Semester ${session.classTeacherSemester}`} /> : null}
       </div>
     </div>
   );

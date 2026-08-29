@@ -1,16 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
+import { dashboardPath } from "@/lib/auth";
 import type { HodDashboard } from "@/lib/types";
 
 export default function HodDashboardPage() {
+  const { session } = useAuth();
+  const router = useRouter();
   const [dashboard, setDashboard] = useState<HodDashboard | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!session || session.role !== "HOD") {
+      router.replace(dashboardPath(session?.role ?? "STUDENT"));
+      return;
+    }
     api.getHodDashboard().then(setDashboard).catch((e) => setError(e instanceof ApiError ? e.message : "Unable to load HOD dashboard."));
-  }, []);
+  }, [session?.role]);
 
   if (error) return <div className="campus-card bg-brick-tint border-brick/30 p-6 text-sm font-medium text-brick">{error}</div>;
   if (!dashboard) return (

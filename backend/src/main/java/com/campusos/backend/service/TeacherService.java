@@ -33,6 +33,29 @@ public class TeacherService {
                 .toList();
     }
 
+    /**
+     * Returns teachers with phone numbers masked unless the viewer is allowed to
+     * see them: Principal (anyone) or the department HOD (anyone in their dept).
+     */
+    public List<Teacher> getTeachersVisibleTo(String email) {
+        User actor = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found."));
+        boolean isPrincipal = actor.getRole() == Role.PRINCIPAL;
+        Teacher actorTeacher = (actor.getRole() == Role.TEACHER || actor.getRole() == Role.HOD)
+                ? teacherRepository.findByUser(actor).orElse(null) : null;
+        boolean isHod = actorTeacher != null && Boolean.TRUE.equals(actorTeacher.getHod());
+        Long hodDept = (isHod && actorTeacher.getDepartment() != null) ? actorTeacher.getDepartment().getId() : null;
+
+        return teacherRepository.findAll().stream()
+                .filter(t -> t.getUser() != null && t.getUser().getStatus() == UserStatus.APPROVED)
+                .map(t -> {
+                    boolean canSee = isPrincipal
+                            || (hodDept != null && t.getDepartment() != null && hodDept.equals(t.getDepartment().getId()));
+                    if (!canSee) t.setPhone(null);
+                    return t;
+                })
+                .toList();
+    }
+
     public List<Teacher> getHodCandidates(Long departmentId) {
         Department department = departmentRepository.findById(departmentId)
                 .orElseThrow(() -> new RuntimeException("Department not found."));
@@ -150,7 +173,13 @@ public class TeacherService {
         if (!isPrincipal && !isHod) throw new RuntimeException("You don't have permission to edit this teacher.");
         if (dto.getFirstName() != null && !dto.getFirstName().isBlank()) target.setFirstName(dto.getFirstName().trim());
         if (dto.getLastName() != null && !dto.getLastName().isBlank()) target.setLastName(dto.getLastName().trim());
-        if (dto.getPhone() != null) target.setPhone(dto.getPhone().trim());
+        if (dto.getPhone() != null) {
+            String phone = dto.getPhone().trim();
+            if (!phone.matches("\\d{10}")) {
+                throw new RuntimeException("Phone number must be exactly 10 digits.");
+            }
+            target.setPhone(phone);
+        }
         if (dto.getDepartment() != null && dto.getDepartment().getId() != null && isPrincipal) {
             Department newDept = departmentRepository.findById(dto.getDepartment().getId()).orElseThrow(() -> new RuntimeException("Department not found."));
             target.setDepartment(newDept);

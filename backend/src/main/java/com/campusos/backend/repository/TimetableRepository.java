@@ -35,10 +35,18 @@ public interface TimetableRepository extends JpaRepository<Timetable, Long> {
             WeekDay day,
             Integer lectureNumber);
             
-        boolean existsByTeacherIdAndDayAndStartTimeLessThanAndEndTimeGreaterThan(
+    boolean existsByTeacherIdAndDayAndStartTimeLessThanAndEndTimeGreaterThan(
         Long teacherId,
         WeekDay day,
         java.time.LocalTime endTime,
         java.time.LocalTime startTime
-);
+    );
+
+    boolean existsBySubjectIdAndTeacherIdAndDay(Long subjectId, Long teacherId, WeekDay day);
+
+    boolean existsBySubjectIdAndTeacherIdAndDayAndLectureNumber(
+            Long subjectId,
+            Long teacherId,
+            WeekDay day,
+            Integer lectureNumber);
 }

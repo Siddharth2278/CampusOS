@@ -1,22 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { dashboardPath } from "@/lib/auth";
 import { CalendarList } from "@/components/dashboard/CalendarList";
 import { TimetableList } from "@/components/dashboard/TimetableList";
 import type { StudentDashboard } from "@/lib/types";
 
 export default function StudentDashboardPage() {
   const { session } = useAuth();
+  const router = useRouter();
   const [dashboard, setDashboard] = useState<StudentDashboard | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (session?.role !== "STUDENT") {
-      setError("This dashboard is available only to student accounts.");
-      setLoading(false);
+    if (!session || session.role !== "STUDENT") {
+      router.replace(dashboardPath(session?.role ?? "STUDENT"));
       return;
     }
 

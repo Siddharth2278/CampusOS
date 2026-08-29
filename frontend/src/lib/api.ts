@@ -140,6 +140,8 @@ export const api = {
     apiRequest<string>("/api/auth/register/principal", { method: "POST", body }),
   principalExists: () => apiRequest<boolean>("/api/auth/principal-exists"),
   deleteOwnAccount: () => apiRequest<string>("/api/auth/me", { method: "DELETE" }),
+  // Re-issue a JWT reflecting the user's CURRENT role (e.g. after HOD promotion)
+  refresh: () => apiRequest<LoginResponse>("/api/auth/refresh", { method: "POST" }),
 
   // ---------- Profile ----------
   getProfile: () => apiRequest<ProfileResponse>("/api/profile"),
@@ -190,6 +192,17 @@ export const api = {
   }) => apiRequest<Subject>("/api/subjects", { method: "POST", body }),
 
   getStudents: () => apiRequest<Student[]>("/api/students"),
+  promoteStudentSemester: (id: number) =>
+    apiRequest<Student>(`/api/students/${id}/promote-semester`, { method: "PUT" }),
+  updateStudent: (id: number, body: { firstName?: string; lastName?: string; phone?: string; semester?: number }) =>
+    apiRequest<Student>(`/api/students/${id}`, { method: "PUT", body }),
+  promoteStudentSemesterBulk: (departmentId: number, semester: number) =>
+    apiRequest<string>(`/api/students/promote-semester/bulk`, {
+      method: "PUT",
+      query: { departmentId, semester },
+    }),
+  deleteStudent: (id: number) =>
+    apiRequest<string>(`/api/students/${id}`, { method: "DELETE" }),
 
   getTeachers: () => apiRequest<Teacher[]>("/api/teachers"),
   getHodCandidates: (departmentId: number) =>
@@ -292,6 +305,12 @@ export const api = {
     apiRequest<AttendanceRecord[]>(`/api/attendance/student/${studentId}/today`),
   getAttendanceBySubject: (subjectId: number, date: string) =>
     apiRequest<AttendanceRecord[]>(`/api/attendance/subject/${subjectId}`, {
+      query: { date },
+    }),
+  getStudentAttendancePercentage: (studentId: number) =>
+    apiRequest<number>(`/api/attendance/student/${studentId}/percentage`),
+  getStudentOnLeave: (studentId: number, date: string) =>
+    apiRequest<boolean>(`/api/attendance/student/${studentId}/on-leave`, {
       query: { date },
     }),
 

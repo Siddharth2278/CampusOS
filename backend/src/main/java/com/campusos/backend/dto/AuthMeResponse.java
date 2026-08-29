@@ -16,4 +16,6 @@ public class AuthMeResponse {
     private Long departmentId;
     private Integer semester;
     private String photoUrl;
+    private Boolean classTeacher;
+    private Integer classTeacherSemester;
 }

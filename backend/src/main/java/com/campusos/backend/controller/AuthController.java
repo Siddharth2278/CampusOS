@@ -64,6 +64,11 @@ public class AuthController {
         return ResponseEntity.ok(authService.principalExists());
     }
 
+    @PostMapping("/refresh")
+    public ResponseEntity<LoginResponse> refresh(@AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(authService.refresh(email));
+    }
+
     @DeleteMapping("/me")
     public ResponseEntity<String> deleteOwnAccount(@AuthenticationPrincipal String email) {
         authService.deleteOwnAccount(email);

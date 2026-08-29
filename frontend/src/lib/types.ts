@@ -14,6 +14,7 @@ export interface AuthMeResponse {
   profileId?: number;
   departmentId?: number;
   semester?: number;
+  photoUrl?: string | null;
 }
 
 export interface LoginResponse {
@@ -376,4 +377,17 @@ export interface AuthSession {
   departmentId?: number;
   semester?: number;
   displayName?: string;
+  photoUrl?: string | null;
+}
+
+export interface ProfileResponse {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string | null;
+  role: Role;
+  departmentId: number | null;
+  semester: number | null;
+  photoUrl: string | null;
 }

@@ -15,4 +15,5 @@ public class AuthMeResponse {
     private Long profileId;
     private Long departmentId;
     private Integer semester;
+    private String photoUrl;
 }

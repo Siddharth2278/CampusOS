@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { clearSession, dashboardPath, getSession, login as loginUser } from "@/lib/auth";
+import { clearSession, dashboardPath, getSession, login as loginUser, saveSession } from "@/lib/auth";
 import type { AuthSession } from "@/lib/types";
 
 interface AuthContextValue {
@@ -10,6 +10,7 @@ interface AuthContextValue {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  updateSession: (patch: Partial<AuthSession>) => void;
 }
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -53,7 +54,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(() => { clearSession(); setSession(null); router.push("/login"); }, [router]);
 
-  const value = useMemo(() => ({ session, loading, login, logout }), [session, loading, login, logout]);
+  const updateSession = useCallback((patch: Partial<AuthSession>) => {
+    setSession((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...patch };
+      saveSession(next);
+      return next;
+    });
+  }, []);
+
+  const value = useMemo(() => ({ session, loading, login, logout, updateSession }), [session, loading, login, logout, updateSession]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

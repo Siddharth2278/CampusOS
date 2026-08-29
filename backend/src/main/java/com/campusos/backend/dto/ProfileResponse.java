@@ -10,5 +10,6 @@ public record ProfileResponse(
         String phone,
         Role role,
         Long departmentId,
-        Integer semester
+        Integer semester,
+        String photoUrl
 ) {}

@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import com.campusos.backend.enums.Role;
 import com.campusos.backend.enums.UserStatus;
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 
 @Entity
 @Data
@@ -45,4 +46,10 @@ public class User {
 
     @Column(length = 255)
     private String lastRoute;
+
+    @Column(length = 512)
+    private String photoUrl;
+
+    @Column
+    private LocalDateTime rejectedAt;
 }

@@ -4,6 +4,7 @@ import com.campusos.backend.entity.Student;
 import com.campusos.backend.entity.Teacher;
 import com.campusos.backend.entity.User;
 import com.campusos.backend.enums.Role;
+import com.campusos.backend.enums.UserStatus;
 import com.campusos.backend.repository.StudentRepository;
 import com.campusos.backend.repository.TeacherRepository;
 import com.campusos.backend.repository.UserRepository;
@@ -37,7 +38,10 @@ public class StudentService {
     }
 
     public List<Student> getAllStudents() {
-        return studentRepository.findAll();
+        // Only show approved students; pending/rejected registrations stay hidden everywhere.
+        return studentRepository.findAll().stream()
+                .filter(s -> s.getUser() != null && s.getUser().getStatus() == UserStatus.APPROVED)
+                .toList();
     }
 
     // Teacher creates student

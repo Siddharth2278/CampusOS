@@ -24,6 +24,8 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
 
+import java.time.LocalDateTime;
+
 @Service
 public class AuthService {
 
@@ -33,6 +35,7 @@ public class AuthService {
     private final StudentRepository studentRepository;
     private final DepartmentRepository departmentRepository;
     private final TeacherRepository teacherRepository;
+    private final CloudinaryService cloudinaryService;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -42,7 +45,8 @@ public AuthService(UserRepository userRepository,
                    DepartmentRepository departmentRepository,
                    TeacherRepository teacherRepository,
                    BCryptPasswordEncoder passwordEncoder,
-                   JwtService jwtService) {
+                   JwtService jwtService,
+                   CloudinaryService cloudinaryService) {
 
     this.userRepository = userRepository;
     this.studentRepository = studentRepository;
@@ -50,13 +54,31 @@ public AuthService(UserRepository userRepository,
     this.teacherRepository = teacherRepository;
     this.passwordEncoder = passwordEncoder;
     this.jwtService = jwtService;
+    this.cloudinaryService = cloudinaryService;
 }
 public User register(RegisterRequest request, Role role) {
 
     if (role == Role.HOD) throw new RuntimeException("HOD accounts are not self-registered. An approved teacher is promoted by the Principal.");
 
-    if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-        throw new RuntimeException("This email is already registered. Please use the Login option.");
+    // Handle an email that is already in the system
+    Optional<User> existingOpt = userRepository.findByEmail(request.getEmail());
+    if (existingOpt.isPresent()) {
+        User existing = existingOpt.get();
+        if (existing.getStatus() == UserStatus.APPROVED) {
+            throw new RuntimeException("This email is already registered. Please use the Login option.");
+        }
+        if (existing.getStatus() == UserStatus.PENDING) {
+            throw new RuntimeException("This email is already registered and still awaiting approval.");
+        }
+        // REJECTED: allow re-registration only after a 3-day cooldown
+        if (existing.getRejectedAt() != null
+                && existing.getRejectedAt().plusDays(3).isAfter(LocalDateTime.now())) {
+            throw new RuntimeException("Your previous registration was rejected. You can register again after 3 days.");
+        }
+        // Older than 3 days -> clear the old rejected record so a fresh signup can proceed
+        teacherRepository.findByUser(existing).ifPresent(teacherRepository::delete);
+        studentRepository.findByUser(existing).ifPresent(studentRepository::delete);
+        userRepository.delete(existing);
     }
 
     // Single institution: only one PRINCIPAL allowed
@@ -147,7 +169,7 @@ public AuthMeResponse getCurrentUser(String email) {
     }
 
     return new AuthMeResponse(user.getId(), user.getEmail(), user.getFirstName(), user.getLastName(),
-            user.getRole(), profileId, departmentId, semester);
+            user.getRole(), profileId, departmentId, semester, user.getPhotoUrl());
 }
 
 public LoginResponse login(LoginRequest request) {
@@ -215,42 +237,64 @@ public ProfileResponse getProfile(String email) {
         }
     }
     return new ProfileResponse(user.getId(), user.getFirstName(), user.getLastName(),
-            user.getEmail(), user.getPhone(), user.getRole(), departmentId, semester);
+            user.getEmail(), user.getPhone(), user.getRole(), departmentId, semester, user.getPhotoUrl());
 }
 
-public ProfileResponse updateProfile(String currentEmail, ProfileUpdateRequest request) {
-    User user = userRepository.findByEmail(currentEmail)
-            .orElseThrow(() -> new RuntimeException("User not found."));
-    String newEmail = request.email() == null ? "" : request.email().trim().toLowerCase();
-    if (newEmail.isBlank()) throw new IllegalArgumentException("Email is required.");
-    if (!newEmail.equalsIgnoreCase(user.getEmail())) {
-        userRepository.findByEmail(newEmail).ifPresent(existing -> {
-            if (!existing.getId().equals(user.getId())) throw new IllegalArgumentException("That email is already in use.");
-        });
-        user.setEmail(newEmail);
-    }
-    user.setFirstName(request.firstName() == null ? user.getFirstName() : request.firstName().trim());
-    user.setLastName(request.lastName() == null ? user.getLastName() : request.lastName().trim());
-    user.setPhone(request.phone() == null ? null : request.phone().trim());
-    userRepository.save(user);
+    public ProfileResponse updateProfile(String currentEmail, ProfileUpdateRequest request) {
+     User user = userRepository.findByEmail(currentEmail)
+             .orElseThrow(() -> new RuntimeException("User not found."));
+     String newEmail = request.email() == null ? "" : request.email().trim().toLowerCase();
+     if (newEmail.isBlank()) throw new IllegalArgumentException("Email is required.");
+     if (!newEmail.equalsIgnoreCase(user.getEmail())) {
+         userRepository.findByEmail(newEmail).ifPresent(existing -> {
+             if (!existing.getId().equals(user.getId())) throw new IllegalArgumentException("That email is already in use.");
+         });
+         user.setEmail(newEmail);
+     }
+     user.setFirstName(request.firstName() == null ? user.getFirstName() : request.firstName().trim());
+     user.setLastName(request.lastName() == null ? user.getLastName() : request.lastName().trim());
+     user.setPhone(request.phone() == null ? null : request.phone().trim());
+     userRepository.save(user);
 
-    if (user.getRole() == Role.STUDENT) {
-        studentRepository.findByUser(user).ifPresent(student -> {
-            student.setFirstName(user.getFirstName());
-            student.setLastName(user.getLastName());
-            student.setEmail(user.getEmail());
-            studentRepository.save(student);
-        });
-    } else if (user.getRole() == Role.TEACHER || user.getRole() == Role.HOD) {
-        teacherRepository.findByUser(user).ifPresent(teacher -> {
-            teacher.setFirstName(user.getFirstName());
-            teacher.setLastName(user.getLastName());
-            teacher.setEmail(user.getEmail());
-            teacherRepository.save(teacher);
-        });
+     if (user.getRole() == Role.STUDENT) {
+         studentRepository.findByUser(user).ifPresent(student -> {
+             student.setFirstName(user.getFirstName());
+             student.setLastName(user.getLastName());
+             student.setEmail(user.getEmail());
+             studentRepository.save(student);
+         });
+     } else if (user.getRole() == Role.TEACHER || user.getRole() == Role.HOD) {
+         teacherRepository.findByUser(user).ifPresent(teacher -> {
+             teacher.setFirstName(user.getFirstName());
+             teacher.setLastName(user.getLastName());
+             teacher.setEmail(user.getEmail());
+             teacherRepository.save(teacher);
+         });
+     }
+     return getProfile(user.getEmail());
+ }
+
+    public ProfileResponse updatePhoto(String email, String photoUrl) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found."));
+        if (user.getPhotoUrl() != null && !user.getPhotoUrl().equals(photoUrl)) {
+            cloudinaryService.deleteByUrl(user.getPhotoUrl());
+        }
+        user.setPhotoUrl(photoUrl);
+        userRepository.save(user);
+        return getProfile(user.getEmail());
     }
-    return getProfile(user.getEmail());
-}
+
+    public ProfileResponse removePhoto(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found."));
+        if (user.getPhotoUrl() != null) {
+            cloudinaryService.deleteByUrl(user.getPhotoUrl());
+            user.setPhotoUrl(null);
+            userRepository.save(user);
+        }
+        return getProfile(user.getEmail());
+    }
 
 
 public String getLastRoute(String email) {
@@ -281,10 +325,13 @@ public void saveLastRoute(String email, String route) {
         if (me.getRole() != Role.PRINCIPAL) {
             throw new RuntimeException("Only Principal can delete own account via this operation.");
         }
-        // Single institution reset: delete all data (MySQL & PostgreSQL compatible)
+        // Single institution reset. Delete in child -> parent order so FK constraints
+        // are never violated (MySQL & PostgreSQL compatible). The only cycle is
+        // departments <-> teachers (departments.hod_teacher_id -> teachers), which we
+        // break by nulling hod_teacher_id before deleting teachers/departments.
         try {
-            // Delete child -> parent to avoid FK violations (no FK_CHECKS toggle needed)
             entityManager.createNativeQuery("DELETE FROM assignment_submissions").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM notifications").executeUpdate();
             entityManager.createNativeQuery("DELETE FROM assignments").executeUpdate();
             entityManager.createNativeQuery("DELETE FROM leave_requests").executeUpdate();
             entityManager.createNativeQuery("DELETE FROM faculty_assignments").executeUpdate();
@@ -292,10 +339,11 @@ public void saveLastRoute(String email, String route) {
             entityManager.createNativeQuery("DELETE FROM academic_calendar").executeUpdate();
             entityManager.createNativeQuery("DELETE FROM timetable").executeUpdate();
             entityManager.createNativeQuery("DELETE FROM notices").executeUpdate();
-            entityManager.createNativeQuery("DELETE FROM notifications").executeUpdate();
             entityManager.createNativeQuery("DELETE FROM attendance").executeUpdate();
             entityManager.createNativeQuery("DELETE FROM subjects").executeUpdate();
             entityManager.createNativeQuery("DELETE FROM students").executeUpdate();
+            // Break the departments <-> teachers cycle before deleting either.
+            entityManager.createNativeQuery("UPDATE departments SET hod_teacher_id = NULL").executeUpdate();
             entityManager.createNativeQuery("DELETE FROM teachers").executeUpdate();
             entityManager.createNativeQuery("DELETE FROM departments").executeUpdate();
             entityManager.createNativeQuery("DELETE FROM users").executeUpdate();

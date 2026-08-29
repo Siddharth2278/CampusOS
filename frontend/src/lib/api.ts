@@ -20,6 +20,7 @@ import type {
   PrincipalDashboard,
   HodDashboard,
   AuthMeResponse,
+  ProfileResponse,
   RegisterRequest,
   Student,
   StudentDashboard,
@@ -139,6 +140,18 @@ export const api = {
     apiRequest<string>("/api/auth/register/principal", { method: "POST", body }),
   principalExists: () => apiRequest<boolean>("/api/auth/principal-exists"),
   deleteOwnAccount: () => apiRequest<string>("/api/auth/me", { method: "DELETE" }),
+
+  // ---------- Profile ----------
+  getProfile: () => apiRequest<ProfileResponse>("/api/profile"),
+  updateProfile: (body: { firstName: string; lastName: string; email: string; phone?: string }) =>
+    apiRequest<ProfileResponse>("/api/profile", { method: "PUT", body }),
+  uploadProfilePhoto: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return apiRequest<ProfileResponse>("/api/profile/photo", { method: "POST", form });
+  },
+  removeProfilePhoto: () =>
+    apiRequest<ProfileResponse>("/api/profile/photo", { method: "DELETE" }),
   changePassword: (body: { currentPassword: string; newPassword: string }) =>
     apiRequest<string>("/api/auth/change-password", { method: "POST", body }),
 

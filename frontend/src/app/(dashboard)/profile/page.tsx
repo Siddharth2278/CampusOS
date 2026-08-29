@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/Button";
@@ -8,37 +8,75 @@ import { api, ApiError } from "@/lib/api";
 import { clearSession } from "@/lib/auth";
 
 export default function Profile() {
-  const { session } = useAuth(); 
+  const { session, updateSession } = useAuth();
   const router = useRouter();
-  const [name, setName] = useState(session?.displayName ?? ""); 
-  const [email, setEmail] = useState(session?.email ?? ""); 
-  const [phone, setPhone] = useState(""); 
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setName(session?.displayName ?? "");
-    setEmail(session?.email ?? "");
-  }, [session]);
+    api.getProfile()
+      .then((p) => {
+        setFirstName(p.firstName);
+        setLastName(p.lastName);
+        setEmail(p.email);
+        setPhone(p.phone ?? "");
+        setPhotoUrl(p.photoUrl);
+      })
+      .catch(() => setErr("Failed to load profile."));
+  }, []);
 
   async function save() {
-    setMsg(""); setErr("");
-    try { 
-      const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080"; 
-      const raw = sessionStorage.getItem("campusos_session"); 
-      const token = raw ? JSON.parse(raw).token : "";
-      
-      const r = await fetch(`${base}/api/profile`,{
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ displayName: name, email, phone })
+    setMsg(""); setErr(""); setSaving(true);
+    try {
+      const updated = await api.updateProfile({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim(),
+        phone: phone.trim() || undefined,
       });
-      if(!r.ok) throw new Error(); 
+      updateSession({ displayName: `${updated.firstName} ${updated.lastName}`, email: updated.email });
       setMsg("Profile updated successfully.");
-    } catch {
-      setMsg("Profile API is not connected yet. Your existing backend remains unchanged.");
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : "Unable to update profile.");
+    } finally { setSaving(false); }
+  }
+
+  async function onPhotoChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setMsg(""); setErr(""); setUploading(true);
+    try {
+      const p = await api.uploadProfilePhoto(file);
+      setPhotoUrl(p.photoUrl);
+      updateSession({ photoUrl: p.photoUrl });
+      setMsg("Profile photo updated.");
+    } catch (er) {
+      setErr(er instanceof ApiError ? er.message : "Photo upload failed.");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
     }
+  }
+
+  async function removePhoto() {
+    setMsg(""); setErr(""); setUploading(true);
+    try {
+      const p = await api.removeProfilePhoto();
+      setPhotoUrl(null);
+      updateSession({ photoUrl: null });
+      setMsg("Profile photo removed.");
+    } catch (er) {
+      setErr(er instanceof ApiError ? er.message : "Failed to remove photo.");
+    } finally { setUploading(false); }
   }
 
   async function deletePrincipal() {
@@ -58,6 +96,8 @@ export default function Profile() {
     } finally { setDeleting(false); }
   }
 
+  const initials = `${(firstName || "U").slice(0, 1).toUpperCase()}${(lastName || "").slice(0, 1).toUpperCase()}`;
+
   return (
     <div className="campus-page max-w-4xl mx-auto py-6">
       <div className="campus-card campus-reveal">
@@ -65,43 +105,81 @@ export default function Profile() {
           <h1 className="font-display text-2xl font-semibold text-ink">My Profile</h1>
           <p className="mt-1 text-sm text-ink-soft">Manage your personal information and account security.</p>
         </div>
-        
+
         <div className="grid gap-8 p-6 lg:p-8 md:grid-cols-[180px_1fr]">
           <div className="text-center">
-            <div className="mx-auto flex items-center justify-center h-32 w-32 rounded-full border-4 border-white bg-brass-tint text-4xl font-semibold text-brass shadow-md">
-              {(name || "U").slice(0,1).toUpperCase()}
+            <div className="mx-auto flex h-32 w-32 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-brass-tint text-4xl font-semibold text-brass shadow-md">
+              {photoUrl ? (
+                <img src={photoUrl} alt="Profile" className="h-full w-full object-cover" />
+              ) : (
+                initials
+              )}
             </div>
-            <button className="mt-4 text-sm font-semibold text-brass hover:text-brass-light transition-colors">Change Photo</button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={onPhotoChange}
+            />
+            <div className="mt-4 flex flex-col items-center gap-2">
+              <button
+                type="button"
+                disabled={uploading}
+                onClick={() => fileRef.current?.click()}
+                className="text-sm font-semibold text-brass hover:text-brass-light transition-colors disabled:opacity-50"
+              >
+                {uploading ? "Uploading..." : "Change Photo"}
+              </button>
+              {photoUrl ? (
+                <button
+                  type="button"
+                  disabled={uploading}
+                  onClick={removePhoto}
+                  className="text-xs font-medium text-slate hover:text-brick transition-colors"
+                >
+                  Remove
+                </button>
+              ) : null}
+            </div>
           </div>
-          
+
           <div className="space-y-6">
             <div className="grid gap-5 sm:grid-cols-2">
-              <label className="text-sm font-semibold text-slate">Full Name
-                <input 
-                  value={name} 
-                  onChange={e=>setName(e.target.value)} 
+              <label className="text-sm font-semibold text-slate">First Name
+                <input
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
                   className="mt-2 w-full rounded-xl border border-hairline bg-paper/80 px-4 py-3 text-ink font-medium outline-none focus:border-brass focus:ring-2 focus:ring-brass/20 transition-all"
                 />
               </label>
-              <label className="text-sm font-semibold text-slate">Email Address
-                <input 
-                  value={email} 
-                  onChange={e=>setEmail(e.target.value)} 
-                  type="email" 
+              <label className="text-sm font-semibold text-slate">Last Name
+                <input
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
                   className="mt-2 w-full rounded-xl border border-hairline bg-paper/80 px-4 py-3 text-ink font-medium outline-none focus:border-brass focus:ring-2 focus:ring-brass/20 transition-all"
                 />
               </label>
             </div>
-            
+
+            <label className="block text-sm font-semibold text-slate">Email Address
+              <input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                type="email"
+                className="mt-2 w-full rounded-xl border border-hairline bg-paper/80 px-4 py-3 text-ink font-medium outline-none focus:border-brass focus:ring-2 focus:ring-brass/20 transition-all"
+              />
+            </label>
+
             <label className="block text-sm font-semibold text-slate">Phone Number
-              <input 
-                value={phone} 
-                onChange={e=>setPhone(e.target.value)} 
-                className="mt-2 w-full rounded-xl border border-hairline bg-paper/80 px-4 py-3 text-ink font-medium outline-none focus:border-brass focus:ring-2 focus:ring-brass/20 transition-all" 
+              <input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-hairline bg-paper/80 px-4 py-3 text-ink font-medium outline-none focus:border-brass focus:ring-2 focus:ring-brass/20 transition-all"
                 placeholder="Add phone number"
               />
             </label>
-            
+
             <div className="rounded-2xl border border-hairline bg-paper/50 p-5 mt-2">
               <div className="flex items-center justify-between">
                 <div>
@@ -119,7 +197,9 @@ export default function Profile() {
             {err && <p className="text-sm font-medium text-brick bg-brick-tint p-3 rounded-lg border border-brick/20">{err}</p>}
 
             <div className="flex flex-wrap gap-4 pt-4 border-t border-hairline">
-              <Button onClick={save} className="bg-brass text-white hover:bg-brass-light px-8 shadow-sm">Save Changes</Button>
+              <Button onClick={save} disabled={saving} className="bg-brass text-white hover:bg-brass-light px-8 shadow-sm disabled:opacity-50">
+                {saving ? "Saving..." : "Save Changes"}
+              </Button>
               <a href="/settings/password" className="inline-flex items-center justify-center rounded-lg border border-hairline bg-white px-6 py-2.5 text-sm font-semibold text-ink transition hover:border-slate-300 hover:bg-slate-50 shadow-sm">
                 Change Password
               </a>

@@ -27,7 +27,10 @@ public class TeacherService {
     }
 
     public List<Teacher> getAllTeachers() {
-        return teacherRepository.findAll();
+        // Only show approved teachers; pending/rejected registrations stay hidden everywhere.
+        return teacherRepository.findAll().stream()
+                .filter(t -> t.getUser() != null && t.getUser().getStatus() == UserStatus.APPROVED)
+                .toList();
     }
 
     public List<Teacher> getHodCandidates(Long departmentId) {

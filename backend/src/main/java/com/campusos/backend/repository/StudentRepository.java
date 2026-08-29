@@ -5,6 +5,7 @@ import java.util.Optional;
 
 import com.campusos.backend.entity.Student;
 import com.campusos.backend.entity.User;
+import com.campusos.backend.enums.UserStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface StudentRepository
@@ -16,5 +17,6 @@ public interface StudentRepository
 
     List<Student> findByDepartmentId(Long departmentId);
     Optional<Student> findByUser(User user);
+    long countByUser_Status(UserStatus status);
 
 }

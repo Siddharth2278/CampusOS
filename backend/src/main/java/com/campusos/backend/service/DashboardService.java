@@ -11,6 +11,7 @@ import com.campusos.backend.dto.TimetableResponse;
 import com.campusos.backend.entity.Student;
 import com.campusos.backend.entity.Teacher;
 import com.campusos.backend.entity.User;
+import com.campusos.backend.enums.UserStatus;
 import com.campusos.backend.repository.AssignmentRepository;
 import com.campusos.backend.repository.DepartmentRepository;
 import com.campusos.backend.repository.NoticeRepository;
@@ -154,8 +155,10 @@ public com.campusos.backend.dto.HodDashboardResponse getHodDashboard(String emai
     }
 
     Long departmentId = hod.getDepartment().getId();
-    long students = studentRepository.findByDepartmentId(departmentId).size();
-    long teachers = teacherRepository.findByDepartmentId(departmentId).size();
+    long students = studentRepository.findByDepartmentId(departmentId).stream()
+            .filter(s -> s.getUser() != null && s.getUser().getStatus() == UserStatus.APPROVED).count();
+    long teachers = teacherRepository.findByDepartmentId(departmentId).stream()
+            .filter(t -> t.getUser() != null && t.getUser().getStatus() == UserStatus.APPROVED).count();
     long subjects = subjectRepository.countByDepartmentId(departmentId);
     long pendingLeaves = leaveService.getPendingForHod(email).stream().filter(l -> true).count();
     long classesToday = timetableService.getTodayDepartmentTimetable(departmentId).size();
@@ -169,8 +172,8 @@ public com.campusos.backend.dto.HodDashboardResponse getHodDashboard(String emai
 public PrincipalDashboardResponse getPrincipalDashboard(String email) {
     return new PrincipalDashboardResponse(
             departmentRepository.count(),
-            studentRepository.count(),
-            teacherRepository.count(),
+            studentRepository.countByUser_Status(UserStatus.APPROVED),
+            teacherRepository.countByUser_Status(UserStatus.APPROVED),
             leaveService.getPendingForPrincipal(email).size(),
             noticeRepository.count());
 }

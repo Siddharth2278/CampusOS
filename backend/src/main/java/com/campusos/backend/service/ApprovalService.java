@@ -6,6 +6,8 @@ import com.campusos.backend.repository.*;
 import org.springframework.stereotype.Service;
 import java.util.List;
 
+import java.time.LocalDateTime;
+
 @Service
 public class ApprovalService {
  private final UserRepository users; private final TeacherRepository teachers; private final StudentRepository students; private final DepartmentRepository departments;
@@ -30,16 +32,20 @@ public class ApprovalService {
    boolean hod=actor.getRole()==Role.HOD && teachers.findByUser(actor).orElseThrow().getDepartment().getId().equals(target.getDepartment().getId());
    if(!principal && !hod) throw new RuntimeException("You cannot approve this teacher");
    if(principal && target.getDepartment().getHod()!=null) throw new RuntimeException("This department has a HOD. Approval belongs to that HOD.");
-   target.getUser().setStatus(approve?UserStatus.APPROVED:UserStatus.REJECTED); users.save(target.getUser());
-   return approve?"Teacher approved":"Teacher rejected";
+    target.getUser().setStatus(approve?UserStatus.APPROVED:UserStatus.REJECTED);
+    if (!approve) target.getUser().setRejectedAt(LocalDateTime.now());
+    users.save(target.getUser());
+    return approve?"Teacher approved":"Teacher rejected";
  }
  public String approveStudent(Long studentId, boolean approve, String email){
    User actor=current(email); Teacher t=teachers.findByUser(actor).orElseThrow();
    if(actor.getRole()!=Role.TEACHER && actor.getRole()!=Role.HOD || !Boolean.TRUE.equals(t.getClassTeacher())) throw new RuntimeException("Only the assigned Class Teacher can approve students");
    Student st=students.findById(studentId).orElseThrow(()->new RuntimeException("Student not found"));
    if(!st.getDepartment().getId().equals(t.getDepartment().getId()) || !st.getSemester().equals(t.getClassTeacherSemester())) throw new RuntimeException("Student is not in your assigned class");
-   st.getUser().setStatus(approve?UserStatus.APPROVED:UserStatus.REJECTED); users.save(st.getUser());
-   return approve?"Student approved":"Student rejected";
+    st.getUser().setStatus(approve?UserStatus.APPROVED:UserStatus.REJECTED);
+    if (!approve) st.getUser().setRejectedAt(LocalDateTime.now());
+    users.save(st.getUser());
+    return approve?"Student approved":"Student rejected";
  }
  public String promoteToHod(Long teacherId, String principalEmail){
    Teacher t=teachers.findById(teacherId).orElseThrow(()->new RuntimeException("Teacher not found")); Department d=t.getDepartment(); if(d==null) throw new RuntimeException("Teacher has no department");

@@ -39,6 +39,25 @@ const roleAccent: Record<Role, string> = {
   STUDENT: "bg-slate",
 };
 
+function Avatar({ src, name, className }: { src?: string | null; name: string; className: string }) {
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt=""
+        className={`${className} object-cover border border-white shadow-sm`}
+      />
+    );
+  }
+  return (
+    <div
+      className={`${className} flex items-center justify-center bg-gradient-to-br from-brass to-brass-light text-white font-bold shadow-sm`}
+    >
+      {name.slice(0, 1).toUpperCase()}
+    </div>
+  );
+}
+
 function MenuIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -258,9 +277,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const mobileProfileFooter = (
     <div className="rounded-2xl border border-hairline bg-paper/80 p-4 shadow-sm">
       <div className="flex items-center gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brass to-brass-light text-sm font-bold text-white shadow-sm">
-          {(session?.displayName ?? session?.email ?? "U").slice(0, 1).toUpperCase()}
-        </div>
+        <Avatar
+          src={session?.photoUrl}
+          name={session?.displayName ?? session?.email ?? "U"}
+          className="h-11 w-11 shrink-0 rounded-full text-sm"
+        />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-ink">{session?.displayName ?? session?.email}</p>
           <p className="truncate text-xs font-medium text-slate">{session ? roleLabel(session.role) : ""}</p>
@@ -360,9 +381,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                   aria-expanded={accountOpen}
                   aria-label="Open profile menu"
                 >
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brass to-brass-light text-xs font-bold text-white shadow-sm">
-                    {(session?.displayName ?? session?.email ?? "U").slice(0, 1).toUpperCase()}
-                  </div>
+                  <Avatar
+                    src={session?.photoUrl}
+                    name={session?.displayName ?? session?.email ?? "U"}
+                    className="flex h-9 w-9 items-center justify-center rounded-xl text-xs"
+                  />
                   <div className="max-w-44 text-left">
                     <p className="truncate text-sm font-semibold text-ink">{session?.displayName ?? session?.email}</p>
                     <p className="truncate text-[11px] text-slate">{session ? roleLabel(session.role) : ""}</p>

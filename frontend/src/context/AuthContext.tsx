@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { clearSession, dashboardPath, getSession, login as loginUser, saveSession } from "@/lib/auth";
 import type { AuthSession } from "@/lib/types";
@@ -11,6 +11,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   updateSession: (patch: Partial<AuthSession>) => void;
+  refreshSession: () => Promise<void>;
 }
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -18,18 +19,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [session, setSession] = useState<AuthSession | null>(null);
   const [loading, setLoading] = useState(true);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => { setSession(getSession()); setLoading(false); }, []);
 
+  const refreshSession = useCallback(async () => {
+    try {
+      const current = getSession();
+      if (!current?.token) return;
+      const { api } = await import("@/lib/api");
+      const me = await api.me();
+      const updated: AuthSession = {
+        ...current,
+        role: me.role,
+        email: me.email,
+        userId: me.userId,
+        profileId: me.profileId,
+        departmentId: me.departmentId,
+        semester: me.semester,
+        displayName: `${me.firstName} ${me.lastName}`,
+        photoUrl: me.photoUrl,
+      };
+      setSession(updated);
+      saveSession(updated);
+    } catch {
+      // Silent fail — session remains as-is
+    }
+  }, []);
+
+  useEffect(() => {
+    const current = getSession();
+    if (current?.token) {
+      intervalRef.current = setInterval(refreshSession, 15000);
+    }
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [refreshSession]);
+
   const login = useCallback(async (email: string, password: string) => {
-    // Never allow the previous browser account to influence the new login.
     clearSession();
+    if (intervalRef.current) clearInterval(intervalRef.current);
 
     const nextSession = await loginUser(email, password);
     setSession(nextSession);
 
+    intervalRef.current = setInterval(refreshSession, 15000);
+
     try {
-      // IMPORTANT: query the resume route with the NEW account's JWT.
       const { api } = await import("@/lib/api");
       const saved = await api.getLastRoute(nextSession.token);
       const route = saved.route;
@@ -50,9 +87,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     router.push(dashboardPath(nextSession.role));
-  }, [router]);
+  }, [router, refreshSession]);
 
-  const logout = useCallback(() => { clearSession(); setSession(null); router.push("/login"); }, [router]);
+  const logout = useCallback(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    clearSession();
+    setSession(null);
+    router.push("/login");
+  }, [router]);
 
   const updateSession = useCallback((patch: Partial<AuthSession>) => {
     setSession((prev) => {
@@ -63,7 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const value = useMemo(() => ({ session, loading, login, logout, updateSession }), [session, loading, login, logout, updateSession]);
+  const value = useMemo(() => ({ session, loading, login, logout, updateSession, refreshSession }), [session, loading, login, logout, updateSession, refreshSession]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

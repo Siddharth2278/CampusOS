@@ -6,7 +6,8 @@ import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import { Input } from "@/components/ui/Input";
-import type { AttendanceItem, AttendanceRecord, FacultyAssignment, Student, Subject } from "@/lib/types";
+import { downloadAttendanceCSV } from "@/lib/downloadAttendance";
+import type { AttendanceItem, AttendanceRecord, FacultyAssignment, Student, Subject, TimetableEntry } from "@/lib/types";
 
 function formatDate(value: string) {
   if (!value) return "";
@@ -17,14 +18,18 @@ function formatDate(value: string) {
   });
 }
 
+const WEEKDAYS_MAP: Record<string, string> = {
+  0: "SUNDAY", 1: "MONDAY", 2: "TUESDAY", 3: "WEDNESDAY",
+  4: "THURSDAY", 5: "FRIDAY", 6: "SATURDAY",
+};
+
 function StudentAttendance({ studentId }: { studentId: number }) {
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    api
-      .getStudentAttendance(studentId)
+    api.getStudentAttendance(studentId)
       .then(setRecords)
       .catch(() => setError("Unable to load attendance history."))
       .finally(() => setLoading(false));
@@ -32,7 +37,7 @@ function StudentAttendance({ studentId }: { studentId: number }) {
 
   const total = records.length;
   const present = records.filter((r) => r.status === "PRESENT").length;
-  const percentage = total ? ((present / total) * 100).toFixed(1) : "0.0";
+  const percentage = total ? ((present / total) * 100) : 0;
 
   const bySubject = useMemo(() => {
     const map = new Map<string, { present: number; total: number }>();
@@ -51,11 +56,11 @@ function StudentAttendance({ studentId }: { studentId: number }) {
 
   return (
     <div className="space-y-8">
-      {/* KPI Grid */}
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="campus-card p-6 lg:p-8 bg-gradient-to-br from-white to-brass-tint/30">
           <p className="text-sm font-semibold uppercase tracking-wider text-slate mb-1">Overall Attendance</p>
-          <p className="text-4xl font-bold text-ink">{percentage}%</p>
+          <p className={`text-4xl font-bold ${percentage < 70 ? "text-brick" : "text-ink"}`}>{percentage.toFixed(1)}%</p>
+          {percentage < 70 && <p className="text-xs font-semibold text-brick mt-2">Below 70% — Action required</p>}
         </div>
         <div className="campus-card p-6 lg:p-8">
           <p className="text-sm font-semibold uppercase tracking-wider text-slate mb-1">Lectures Attended</p>
@@ -69,15 +74,18 @@ function StudentAttendance({ studentId }: { studentId: number }) {
           <p className="text-sm font-medium text-slate text-center py-6">No attendance recorded yet.</p>
         ) : (
           <div className="space-y-3">
-            {bySubject.map(([subject, stat]) => (
-              <div key={subject} className="flex items-center justify-between rounded-xl border border-hairline bg-paper/50 px-5 py-4">
-                <span className="font-semibold text-ink">{subject}</span>
-                <div className="text-right">
-                  <span className="block text-lg font-bold text-ink">{((stat.present / stat.total) * 100).toFixed(0)}%</span>
-                  <span className="block text-xs font-medium text-slate mt-0.5">{stat.present}/{stat.total} Attended</span>
+            {bySubject.map(([subject, stat]) => {
+              const pct = (stat.present / stat.total) * 100;
+              return (
+                <div key={subject} className="flex items-center justify-between rounded-xl border border-hairline bg-paper/50 px-5 py-4">
+                  <span className="font-semibold text-ink">{subject}</span>
+                  <div className="text-right">
+                    <span className={`block text-lg font-bold ${pct < 70 ? "text-brick" : "text-ink"}`}>{pct.toFixed(0)}%</span>
+                    <span className="block text-xs font-medium text-slate mt-0.5">{stat.present}/{stat.total} Attended</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -125,8 +133,10 @@ function StudentAttendance({ studentId }: { studentId: number }) {
 }
 
 function TeacherAttendance({ teacherId }: { teacherId: number }) {
+  const { session } = useAuth();
   const [assignments, setAssignments] = useState<FacultyAssignment[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
+  const [timetable, setTimetable] = useState<TimetableEntry[]>([]);
   const [subjectId, setSubjectId] = useState<string>("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [lectureNumber, setLectureNumber] = useState("1");
@@ -138,10 +148,15 @@ function TeacherAttendance({ teacherId }: { teacherId: number }) {
   const [sheet, setSheet] = useState<AttendanceRecord[] | null>(null);
 
   useEffect(() => {
-    Promise.all([api.getMyFacultyAssignments(), api.getStudents()])
-      .then(([myAssignments, allStudents]) => {
+    Promise.all([
+      api.getMyFacultyAssignments(),
+      api.getStudents(),
+      api.getTeacherTimetable(teacherId),
+    ])
+      .then(([myAssignments, allStudents, timetableEntries]) => {
         setAssignments(myAssignments);
         setStudents(allStudents);
+        setTimetable(timetableEntries);
       })
       .catch((e) => setError(e instanceof ApiError ? e.message : "Unable to load your subjects."))
       .finally(() => setLoading(false));
@@ -155,6 +170,20 @@ function TeacherAttendance({ teacherId }: { teacherId: number }) {
     return students.filter((s) => s.department?.id === selectedSubject.department?.id && s.semester === selectedSubject.semester);
   }, [students, selectedSubject]);
 
+  const selectedDay = WEEKDAYS_MAP[new Date(date).getDay()];
+
+  const hasTimetableSlot = useMemo(() => {
+    if (!selectedSubject || !date) return false;
+    return timetable.some(
+      (t) =>
+        t.subject === selectedSubject.name &&
+        t.day === selectedDay &&
+        t.lectureNumber === Number(lectureNumber)
+    );
+  }, [selectedSubject, date, lectureNumber, timetable, selectedDay]);
+
+  const canMarkAttendance = hasTimetableSlot;
+
   useEffect(() => {
     const next: Record<number, "PRESENT" | "ABSENT"> = {};
     rosterStudents.forEach((s) => {
@@ -164,7 +193,7 @@ function TeacherAttendance({ teacherId }: { teacherId: number }) {
   }, [rosterStudents]);
 
   async function handleSubmit() {
-    if (!selectedSubject) return;
+    if (!selectedSubject || !canMarkAttendance) return;
     setSubmitting(true);
     setMessage("");
     setError("");
@@ -216,7 +245,7 @@ function TeacherAttendance({ teacherId }: { teacherId: number }) {
       <div className="campus-card p-6 lg:p-8 campus-reveal">
         <div className="mb-6 border-b border-hairline pb-4">
           <h2 className="text-xl font-semibold text-ink">Mark Attendance</h2>
-          <p className="mt-1 text-sm text-ink-soft">Pick a subject, date, and lecture number to begin.</p>
+          <p className="mt-1 text-sm text-ink-soft">Pick a subject, date, and lecture number to begin. Attendance can only be marked if you have a scheduled lecture in the timetable.</p>
         </div>
 
         <div className="grid gap-5 sm:grid-cols-3">
@@ -232,6 +261,19 @@ function TeacherAttendance({ teacherId }: { teacherId: number }) {
           <Input label="Lecture Number" type="number" min={1} value={lectureNumber} onChange={(e) => setLectureNumber(e.target.value)} />
         </div>
 
+        {selectedSubject && (
+          <div className="mt-4 rounded-xl border border-hairline bg-paper/50 px-5 py-3">
+            <div className="flex items-center gap-3">
+              <span className={`h-2.5 w-2.5 rounded-full ${canMarkAttendance ? "bg-moss" : "bg-brick"}`} />
+              <span className={`text-sm font-semibold ${canMarkAttendance ? "text-moss" : "text-brick"}`}>
+                {canMarkAttendance
+                  ? `Lecture scheduled — you can mark attendance for ${selectedSubject.name} on ${selectedDay} #${lectureNumber}`
+                  : `No lecture scheduled for ${selectedSubject.name} on ${selectedDay} #${lectureNumber}. Attendance cannot be marked.`}
+              </span>
+            </div>
+          </div>
+        )}
+
         {selectedSubject ? (
           <div className="mt-8 pt-6 border-t border-hairline">
             {rosterStudents.length === 0 ? (
@@ -244,7 +286,7 @@ function TeacherAttendance({ teacherId }: { teacherId: number }) {
                   <h3 className="font-semibold text-ink">Class Roster</h3>
                   <span className="text-xs font-medium bg-slate-tint text-slate px-3 py-1 rounded-full">{rosterStudents.length} Students</span>
                 </div>
-                
+
                 {rosterStudents.map((student) => (
                   <div key={student.id} className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-hairline bg-white px-5 py-4 shadow-sm hover:border-slate-300 transition-colors">
                     <div>
@@ -280,12 +322,17 @@ function TeacherAttendance({ teacherId }: { teacherId: number }) {
             {message ? <p className="mt-6 text-sm font-medium text-moss bg-moss-tint p-3 rounded-lg">{message}</p> : null}
 
             <div className="mt-8 flex flex-wrap gap-3">
-              <Button onClick={handleSubmit} disabled={submitting || rosterStudents.length === 0} className="bg-brass text-white hover:bg-brass-light px-8">
+              <Button onClick={handleSubmit} disabled={submitting || rosterStudents.length === 0 || !canMarkAttendance} className="bg-brass text-white hover:bg-brass-light px-8">
                 {submitting ? "Saving..." : "Save Attendance"}
               </Button>
               <Button variant="secondary" onClick={loadSheet} className="bg-slate-tint text-ink hover:bg-hairline px-6">
                 View Saved Sheet
               </Button>
+              {sheet && sheet.length > 0 && (
+                <Button variant="secondary" onClick={() => downloadAttendanceCSV(sheet, `attendance-${selectedSubject?.name}-${date}.csv`)} className="bg-moss-tint text-moss hover:bg-moss hover:text-white px-6">
+                  Download CSV
+                </Button>
+              )}
             </div>
           </div>
         ) : null}
@@ -293,11 +340,18 @@ function TeacherAttendance({ teacherId }: { teacherId: number }) {
 
       {sheet ? (
         <div className="campus-card p-6 lg:p-8 campus-reveal">
-          <div className="mb-6 border-b border-hairline pb-4">
-            <h2 className="text-xl font-semibold text-ink">Attendance Sheet</h2>
-            <p className="mt-1 text-sm text-ink-soft">Recorded for {formatDate(date)}</p>
+          <div className="mb-6 border-b border-hairline pb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-ink">Attendance Sheet</h2>
+              <p className="mt-1 text-sm text-ink-soft">Recorded for {formatDate(date)}</p>
+            </div>
+            {sheet.length > 0 && (
+              <Button variant="secondary" onClick={() => downloadAttendanceCSV(sheet, `attendance-${selectedSubject?.name}-${date}.csv`)} className="bg-moss-tint text-moss hover:bg-moss hover:text-white text-sm px-4">
+                Download CSV
+              </Button>
+            )}
           </div>
-          
+
           {sheet.length === 0 ? (
             <p className="text-sm font-medium text-slate text-center py-6">No attendance saved for this date yet.</p>
           ) : (
@@ -320,6 +374,146 @@ function TeacherAttendance({ teacherId }: { teacherId: number }) {
   );
 }
 
+function HodAttendanceView({ departmentId }: { departmentId: number }) {
+  const [students, setStudents] = useState<Student[]>([]);
+  const [allRecords, setAllRecords] = useState<AttendanceRecord[]>([]);
+  const [selectedStudent, setSelectedStudent] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [semester, setSemester] = useState("1");
+  const [studentRecords, setStudentRecords] = useState<AttendanceRecord[]>([]);
+
+  useEffect(() => {
+    api.getStudents()
+      .then((s) => setStudents(s.filter((st) => st.department?.id === departmentId)))
+      .catch(() => setError("Unable to load students."))
+      .finally(() => setLoading(false));
+  }, [departmentId]);
+
+  const filteredStudents = useMemo(
+    () => students.filter((s) => s.semester === Number(semester)),
+    [students, semester],
+  );
+
+  const studentAttendanceMap = useMemo(() => {
+    const map = new Map<number, { total: number; present: number; percentage: number }>();
+    allRecords.forEach((r) => {
+      const sid = r.student?.id;
+      if (!sid) return;
+      const entry = map.get(sid) ?? { total: 0, present: 0, percentage: 0 };
+      entry.total += 1;
+      if (r.status === "PRESENT") entry.present += 1;
+      entry.percentage = entry.total ? (entry.present / entry.total) * 100 : 0;
+      map.set(sid, entry);
+    });
+    return map;
+  }, [allRecords]);
+
+  useEffect(() => {
+    if (!selectedStudent) { setStudentRecords([]); return; }
+    api.getStudentAttendance(selectedStudent).then(setStudentRecords).catch(() => setStudentRecords([]));
+  }, [selectedStudent]);
+
+  const selectedStudentData = students.find((s) => s.id === selectedStudent);
+
+  const bySubject = useMemo(() => {
+    const map = new Map<string, { present: number; total: number }>();
+    studentRecords.forEach((record) => {
+      const key = record.subject?.name ?? "Unknown";
+      const entry = map.get(key) ?? { present: 0, total: 0 };
+      entry.total += 1;
+      if (record.status === "PRESENT") entry.present += 1;
+      map.set(key, entry);
+    });
+    return Array.from(map.entries());
+  }, [studentRecords]);
+
+  if (loading) return <div className="animate-breathe text-brass font-medium py-4">Loading department attendance...</div>;
+  if (error) return <div className="campus-card bg-brick-tint border-brick/30 p-6 text-sm font-medium text-brick">{error}</div>;
+
+  return (
+    <div className="space-y-8">
+      <div className="campus-card p-6 lg:p-8 campus-reveal">
+        <div className="mb-6 border-b border-hairline pb-4">
+          <h2 className="text-xl font-semibold text-ink">Department Attendance Overview</h2>
+          <p className="mt-1 text-sm text-ink-soft">Click on a student to see subject-wise attendance across all semesters.</p>
+        </div>
+        <Select label="Filter by Semester" value={semester} onChange={(e) => setSemester(e.target.value)}>
+          {Array.from({ length: 6 }, (_, i) => i + 1).map((s) => (
+            <option key={s} value={s}>Semester {s}</option>
+          ))}
+        </Select>
+
+        <div className="mt-6 grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {filteredStudents.map((student) => {
+            const att = studentAttendanceMap.get(student.id);
+            const pct = att?.percentage ?? 0;
+            return (
+              <button
+                key={student.id}
+                type="button"
+                onClick={() => setSelectedStudent(selectedStudent === student.id ? null : student.id)}
+                className={`text-left rounded-xl border p-4 transition-all ${
+                  selectedStudent === student.id
+                    ? "border-brass bg-brass-tint shadow-sm"
+                    : pct < 70 && att
+                      ? "border-brick/30 bg-brick-tint/50 hover:border-brick/50"
+                      : "border-hairline bg-paper/50 hover:border-slate-300"
+                }`}
+              >
+                <p className="font-semibold text-ink text-sm">{student.firstName} {student.lastName}</p>
+                <p className="text-xs text-ink-soft mt-0.5">Roll: {student.rollNumber} · {student.enrollmentNumber}</p>
+                {att ? (
+                  <p className={`mt-2 text-lg font-bold ${pct < 70 ? "text-brick" : "text-ink"}`}>
+                    {pct.toFixed(1)}%
+                    <span className="text-xs font-medium text-slate ml-2">{att.present}/{att.total}</span>
+                  </p>
+                ) : (
+                  <p className="mt-2 text-sm text-slate">No records</p>
+                )}
+              </button>
+            );
+          })}
+          {filteredStudents.length === 0 && (
+            <p className="text-sm font-medium text-slate text-center py-6 col-span-full">No students in this semester.</p>
+          )}
+        </div>
+      </div>
+
+      {selectedStudent && selectedStudentData && (
+        <div className="campus-card p-6 lg:p-8 campus-reveal">
+          <div className="mb-6 border-b border-hairline pb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-ink">{selectedStudentData.firstName} {selectedStudentData.lastName}</h2>
+              <p className="mt-1 text-sm text-ink-soft">Semester {selectedStudentData.semester} · Subject-wise attendance across all semesters</p>
+            </div>
+            <Button variant="secondary" onClick={() => setSelectedStudent(null)} className="text-sm px-4 bg-slate-tint text-ink hover:bg-hairline">Close</Button>
+          </div>
+
+          {bySubject.length === 0 ? (
+            <p className="text-sm font-medium text-slate text-center py-6">No attendance records for this student.</p>
+          ) : (
+            <div className="space-y-3">
+              {bySubject.map(([subject, stat]) => {
+                const pct = (stat.present / stat.total) * 100;
+                return (
+                  <div key={subject} className="flex items-center justify-between rounded-xl border border-hairline bg-paper/50 px-5 py-4">
+                    <span className="font-semibold text-ink">{subject}</span>
+                    <div className="text-right">
+                      <span className={`block text-lg font-bold ${pct < 70 ? "text-brick" : "text-ink"}`}>{pct.toFixed(0)}%</span>
+                      <span className="block text-xs font-medium text-slate mt-0.5">{stat.present}/{stat.total} Attended</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AttendancePage() {
   const { session } = useAuth();
 
@@ -330,7 +524,9 @@ export default function AttendancePage() {
         <p className="mt-2 text-ink-soft text-base">
           {session?.role === "STUDENT"
             ? "Your attendance record across all subjects."
-            : "Mark and review attendance for your subjects."}
+            : session?.role === "HOD"
+              ? "Department-wide attendance overview and student drill-down."
+              : "Mark and review attendance for your scheduled lectures."}
         </p>
       </header>
 
@@ -340,6 +536,10 @@ export default function AttendancePage() {
 
       {(session?.role === "TEACHER" || session?.role === "HOD") && session.profileId ? (
         <TeacherAttendance teacherId={session.profileId} />
+      ) : null}
+
+      {session?.role === "HOD" && session.departmentId ? (
+        <HodAttendanceView departmentId={session.departmentId} />
       ) : null}
 
       {session?.role === "PRINCIPAL" ? (

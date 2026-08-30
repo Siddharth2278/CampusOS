@@ -369,4 +369,11 @@ export const api = {
     apiRequest<TimetableEntry[]>(`/api/timetable/weekly/${semester}`),
   getTeacherTimetable: (teacherId: number) =>
     apiRequest<TimetableEntry[]>(`/api/timetable/teacher/${teacherId}`),
+
+  // ---------- Semester Upgrade ----------
+  upgradeSemester: (departmentId: number, fromSemester: number) =>
+    apiRequest<string>(`/api/students/upgrade-semester`, {
+      method: "PUT",
+      query: { departmentId, fromSemester },
+    }),
 };

@@ -14,8 +14,8 @@ export default function TeacherDashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (session?.role !== "TEACHER") {
-      setError("This dashboard is available only to teacher accounts.");
+    if (session?.role !== "TEACHER" && session?.role !== "HOD") {
+      setError("This dashboard is available only to teacher and HOD accounts.");
       setLoading(false);
       return;
     }

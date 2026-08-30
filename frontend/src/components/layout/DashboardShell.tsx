@@ -469,7 +469,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                       <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-tint">⌁</span>
                       Change password
                     </Link>
-                    <button onClick={logout} className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-maroon hover:bg-maroon-tint">
+                    <button onClick={() => { setAccountOpen(false); logout(); }} className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-maroon hover:bg-maroon-tint">
                       <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-maroon-tint">↗</span>
                       Sign out
                     </button>
@@ -484,9 +484,26 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             <div className="relative z-10">{children}</div>
 
             <footer className="relative z-10 mt-12 border-t border-hairline px-1 pb-8 pt-6 sm:mt-16">
-              <div className="flex flex-col gap-3 text-xs text-ink-soft sm:flex-row sm:items-center sm:justify-between">
-                <span>&copy; {new Date().getFullYear()} CampusOS</span>
-                <span className="inline-flex items-center gap-2">
+              <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="font-display text-sm font-bold tracking-tight text-ink">Campus<span className="text-brass">OS</span></span>
+                  </div>
+                  <p className="text-xs text-ink-soft max-w-xs leading-relaxed">
+                    Unified academic management platform connecting administrators, faculty, and students across all departments.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs font-medium text-ink-soft">
+                  <a href="/dashboard" className="hover:text-brass transition-colors">Dashboard</a>
+                  <a href="/notices" className="hover:text-brass transition-colors">Notices</a>
+                  <a href="/calendar" className="hover:text-brass transition-colors">Calendar</a>
+                  <a href="/leaves" className="hover:text-brass transition-colors">Leaves</a>
+                  <a href="/profile" className="hover:text-brass transition-colors">Profile</a>
+                </div>
+              </div>
+              <div className="mt-6 flex flex-col gap-2 border-t border-hairline pt-5 sm:flex-row sm:items-center sm:justify-between">
+                <span className="text-[11px] text-ink-soft">&copy; {new Date().getFullYear()} CampusOS. All rights reserved.</span>
+                <span className="inline-flex items-center gap-2 text-[11px] font-medium text-ink-soft">
                   <span className="h-1.5 w-1.5 rounded-full bg-moss" />
                   System operational
                 </span>

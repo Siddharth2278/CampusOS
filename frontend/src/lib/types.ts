@@ -28,6 +28,7 @@ export interface RegisterRequest {
   lastName: string;
   email: string;
   password: string;
+  phone?: string;
   enrollmentNumber?: string;
   rollNumber?: number;
   semester?: number;
@@ -50,6 +51,7 @@ export interface Student {
   firstName: string;
   lastName: string;
   email: string;
+  phone?: string;
   semester: number;
   admissionYear: number;
   department?: Department;

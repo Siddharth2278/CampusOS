@@ -234,7 +234,7 @@ function PrincipalTeachersTab({ teachers, departments, reload }: { teachers: Tea
   const filtered = useMemo(() => {
     let r = teachers;
     if (filterDept) r = r.filter(t => String(t.department?.id) === filterDept);
-    if (q) { const x = q.toLowerCase(); r = r.filter(t => `${t.firstName} ${t.lastName} ${t.email} ${t.teacherId}`.toLowerCase().includes(x)); }
+    if (q) { const x = q.toLowerCase(); r = r.filter(t => `${t.firstName} ${t.lastName} ${t.email} ${t.teacherId} ${t.phone ?? ""}`.toLowerCase().includes(x)); }
     return r;
   }, [teachers, filterDept, q]);
 
@@ -297,7 +297,7 @@ function PrincipalTeachersTab({ teachers, departments, reload }: { teachers: Tea
                     {t.hod ? <span className="rounded-full bg-brass-tint border border-brass/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brass">HOD</span> : null}
                     {t.classTeacher ? <span className="rounded-full bg-moss-tint border border-moss/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-moss">Class Teacher Sem {t.classTeacherSemester}</span> : null}
                   </div>
-                  <p className="text-xs text-ink-soft">{t.teacherId} · {t.email} · {t.department?.name ?? "No Dept"}</p>
+                  <p className="text-xs text-ink-soft">{t.teacherId} · {t.email} · {t.department?.name ?? "No Dept"} {t.phone ? `· ${t.phone}` : ""}</p>
                 </div>
                 <div className="flex gap-2">
                   <button onClick={()=>startEdit(t)} className="rounded-lg border border-hairline bg-white px-4 py-1.5 text-xs font-semibold text-ink hover:bg-slate-tint">Edit</button>
@@ -444,25 +444,74 @@ function FacultyAssignmentsTab({ assignments,teachers,subjects,reload }: { assig
   );
 }
 
-function StudentsTab({students}:{students:Student[]}) {
-  const [q, setQ] = useState(""); 
+function StudentsTab({ students, canUpgradeSemester, departmentId }: { students: Student[]; canUpgradeSemester: boolean; departmentId?: number }) {
+  const [q, setQ] = useState("");
+  const [semester, setSemester] = useState("1");
+  const [upgradeSem, setUpgradeSem] = useState("1");
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const filtered = useMemo(() => {
-    const x = q.toLowerCase(); 
-    return students.filter(s => `${s.firstName} ${s.lastName} ${s.enrollmentNumber}`.toLowerCase().includes(x));
-  }, [q,students]);
-  
+    const x = q.toLowerCase();
+    return students
+      .filter((s) => s.semester === Number(semester))
+      .filter((s) => `${s.firstName} ${s.lastName} ${s.enrollmentNumber}`.toLowerCase().includes(x));
+  }, [q, students, semester]);
+
+  async function upgradeSemester() {
+    if (!departmentId) return;
+    setError(""); setMessage(""); setSubmitting(true);
+    try {
+      await api.upgradeSemester(departmentId, Number(upgradeSem));
+      setMessage(`All Semester ${upgradeSem} students upgraded to Semester ${Number(upgradeSem) + 1}.`);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Failed to upgrade semester.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
-    <div className="campus-card p-6 lg:p-8 campus-reveal">
-      <h2 className="text-xl font-semibold text-ink mb-6 pb-4 border-b border-hairline">Department Students</h2>
-      <Input label="Search Students" placeholder="Search by name or enrollment number..." value={q} onChange={e=>setQ(e.target.value)} />
-      <div className="mt-6 grid sm:grid-cols-2 md:grid-cols-3 gap-3">
-        {filtered.map(s => (
-          <div key={s.id} className="rounded-xl border border-hairline bg-paper/50 p-4">
-            <p className="font-semibold text-ink">{s.firstName} {s.lastName}</p>
-            <p className="text-xs font-medium text-slate mt-1">{s.enrollmentNumber} · Semester {s.semester}</p>
-          </div>
-        ))}
+    <div className="space-y-6">
+      <div className="campus-card p-6 lg:p-8 campus-reveal">
+        <h2 className="text-xl font-semibold text-ink mb-6 pb-4 border-b border-hairline">Department Students</h2>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Input label="Search Students" placeholder="Search by name or enrollment number..." value={q} onChange={e => setQ(e.target.value)} />
+          <Select label="Filter by Semester" value={semester} onChange={e => setSemester(e.target.value)}>
+            {SEMESTERS.map(x => <option key={x} value={x}>Semester {x}</option>)}
+          </Select>
+        </div>
+        <div className="mt-6 grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+          {filtered.map(s => (
+            <div key={s.id} className="rounded-xl border border-hairline bg-paper/50 p-4">
+              <p className="font-semibold text-ink">{s.firstName} {s.lastName}</p>
+              <p className="text-xs font-medium text-slate mt-1">{s.enrollmentNumber} · Roll {s.rollNumber}</p>
+              {s.phone && <p className="text-xs font-medium text-brass mt-1">Phone: {s.phone}</p>}
+            </div>
+          ))}
+          {filtered.length === 0 && <p className="text-sm font-medium text-slate text-center py-6 col-span-full">No students found for this semester.</p>}
+        </div>
       </div>
+
+      {canUpgradeSemester && (
+        <div className="campus-card p-6 lg:p-8 campus-reveal">
+          <div className="mb-6 border-b border-hairline pb-4">
+            <h2 className="text-xl font-semibold text-ink">Semester Upgrade</h2>
+            <p className="mt-1 text-sm text-ink-soft">Promote all students from one semester to the next. Subjects remain the same but become editable after upgrade.</p>
+          </div>
+          <div className="flex flex-wrap items-end gap-4">
+            <Select label="Upgrade from Semester" value={upgradeSem} onChange={e => setUpgradeSem(e.target.value)}>
+              {[1, 2, 3, 4, 5].map(x => <option key={x} value={x}>Semester {x} → {x + 1}</option>)}
+            </Select>
+            <Button className="bg-brass text-white hover:bg-brass-light px-6" onClick={upgradeSemester} disabled={submitting}>
+              {submitting ? "Upgrading..." : "Upgrade All Students"}
+            </Button>
+          </div>
+          {error ? <p className="mt-4 text-sm font-medium text-brick bg-brick-tint p-3 rounded-lg">{error}</p> : null}
+          {message ? <p className="mt-4 text-sm font-medium text-moss bg-moss-tint p-3 rounded-lg">{message}</p> : null}
+          <p className="mt-3 text-xs font-medium text-slate">Note: Students in the final semester (6) cannot be upgraded. Subjects from the old semester carry over and can be edited by the HOD.</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -547,7 +596,7 @@ export default function DirectoryPage() {
         {session.role === "HOD" && tab === "Subjects" ? <SubjectsTab subjects={mySubjects} departmentId={session.departmentId!} reload={reload}/> : null}
         {session.role === "HOD" && tab === "Teachers" ? <TeachersTab teachers={myTeachers} reload={reload}/> : null}
         {session.role === "HOD" && tab === "Faculty Assignments" ? <FacultyAssignmentsTab assignments={myAssignments} teachers={myTeachers} subjects={mySubjects} reload={reload}/> : null}
-        {session.role === "HOD" && tab === "Students" ? <StudentsTab students={myStudents}/> : null}
+        {session.role === "HOD" && tab === "Students" ? <StudentsTab students={myStudents} canUpgradeSemester={true} departmentId={session.departmentId} /> : null}
       </div>
     </div>
   );

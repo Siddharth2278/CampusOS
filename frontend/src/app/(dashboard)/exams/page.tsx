@@ -110,7 +110,10 @@ export default function ExamsPage() {
     if (departmentId && semester) loadExams();
   }, [departmentId, semester]);
 
-  const subjectsInScope = useMemo(() => subjects.filter((s) => String(s.department?.id) === departmentId && s.semester === Number(semester)), [subjects, departmentId, semester]);
+  const subjectsInScope = useMemo(() => {
+    const deptId = session?.role === "HOD" ? String(session.departmentId) : departmentId;
+    return subjects.filter((s) => String(s.department?.id) === deptId && s.semester === Number(semester));
+  }, [subjects, departmentId, semester, session?.role, session?.departmentId]);
 
   async function handleCreate() {
     if (!session?.userId || !form.subjectId || !form.examName || !form.examDate) return;

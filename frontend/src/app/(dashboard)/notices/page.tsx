@@ -396,6 +396,14 @@ export default function NoticesPage() {
     load();
   }, []);
 
+  useEffect(() => {
+    const handleDataChanged = () => {
+      load();
+    };
+    window.addEventListener("campusos:data-changed", handleDataChanged);
+    return () => window.removeEventListener("campusos:data-changed", handleDataChanged);
+  }, []);
+
   async function handleDelete(id: number) {
     setDeletingId(id);
     try {

@@ -38,6 +38,11 @@ function ApprovalQueue({ approverId }: { approverId: number }) {
   }
 
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    const handleDataChanged = () => load();
+    window.addEventListener("campusos:data-changed", handleDataChanged);
+    return () => window.removeEventListener("campusos:data-changed", handleDataChanged);
+  }, []);
 
   async function decide(leaveId: number, status: "APPROVED" | "REJECTED") {
     setBusyId(leaveId);
@@ -137,6 +142,13 @@ export default function LeavesPage() {
         <p className="mt-2 text-ink-soft text-base">
           {canApply ? "Apply for leave and track your requests." : "Review and manage leave requests."}
         </p>
+        <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-wider">
+          <span className="rounded-full bg-slate-tint border border-slate/20 px-3 py-1 text-slate">Student → Class Teacher</span>
+          <span className="text-slate">→</span>
+          <span className="rounded-full bg-brass-tint border border-brass/20 px-3 py-1 text-brass">HOD</span>
+          <span className="text-slate">→</span>
+          <span className="rounded-full bg-maroon-tint border border-maroon/20 px-3 py-1 text-maroon">Principal</span>
+        </div>
       </header>
 
       {stats ? (

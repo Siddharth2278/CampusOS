@@ -211,37 +211,15 @@ public String applyLeave(LeaveRequestDto request, String email) {
                 "Invalid leave status.");
     }
 
+    leave.setStatus(request.getStatus());
     leave.setApprovedBy(approver);
     leave.setApprovedAt(LocalDateTime.now());
     leave.setRemarks(request.getRemarks());
 
-    if (request.getStatus() == LeaveStatus.REJECTED) {
-        leave.setStatus(LeaveStatus.REJECTED);
-        leaveRequestRepository.save(leave);
-        return "Leave rejected.";
-    }
-
-    // APPROVED -> escalate through the approval chain:
-    // STUDENT -> CLASS_TEACHER -> HOD -> PRINCIPAL (final)
-    ApproverRole next = nextApprover(leave.getApproverRole());
-    if (next == null) {
-        leave.setStatus(LeaveStatus.APPROVED);
-        leaveRequestRepository.save(leave);
-        return "Leave approved.";
-    }
-    leave.setApproverRole(next);
-    leave.setStatus(LeaveStatus.PENDING);
     leaveRequestRepository.save(leave);
-    return "Leave forwarded to " + next + " for approval.";
-}
 
-    private ApproverRole nextApprover(ApproverRole current) {
-        return switch (current) {
-            case CLASS_TEACHER -> ApproverRole.HOD;
-            case HOD -> ApproverRole.PRINCIPAL;
-            case PRINCIPAL -> null;
-        };
-    }
+    return "Leave updated successfully.";
+}
 public LeaveStatisticsResponse getMyStatistics(Long userId) {
 
     long pending = leaveRequestRepository.countByUserIdAndStatus(

@@ -17,8 +17,8 @@ public class TeacherController {
     }
 
     @GetMapping
-    public List<Teacher> all(@AuthenticationPrincipal String email) {
-        return service.getTeachersVisibleTo(email);
+    public List<Teacher> all() {
+        return service.getAllTeachers();
     }
 
     @GetMapping("/hod-candidates")

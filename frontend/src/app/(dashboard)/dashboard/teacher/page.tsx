@@ -1,25 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import { dashboardPath } from "@/lib/auth";
 import { CalendarList } from "@/components/dashboard/CalendarList";
 import { TimetableList } from "@/components/dashboard/TimetableList";
 import type { TeacherDashboard } from "@/lib/types";
 
 export default function TeacherDashboardPage() {
   const { session } = useAuth();
-  const router = useRouter();
   const [dashboard, setDashboard] = useState<TeacherDashboard | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!session || session.role !== "TEACHER") {
-      // Role changed (e.g. promoted to HOD) — send the user to the right dashboard.
-      router.replace(dashboardPath(session?.role ?? "STUDENT"));
+    if (session?.role !== "TEACHER") {
+      setError("This dashboard is available only to teacher accounts.");
+      setLoading(false);
       return;
     }
 

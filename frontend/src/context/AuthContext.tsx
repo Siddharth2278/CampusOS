@@ -1,9 +1,8 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { clearSession, dashboardPath, getSession, login as loginUser, saveSession } from "@/lib/auth";
-import { api } from "@/lib/api";
 import type { AuthSession } from "@/lib/types";
 
 interface AuthContextValue {
@@ -17,30 +16,10 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const pathname = usePathname();
   const [session, setSession] = useState<AuthSession | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const s = getSession();
-    setSession(s);
-    setLoading(false);
-    // Keep the JWT role in sync. After a role change (e.g. teacher promoted to
-    // HOD) the stored token still carries the old role, so re-issue it here.
-    // If the role actually changed (a promotion), send the user to the correct
-    // dashboard so they immediately see the new role's interface.
-    if (s?.token) {
-      api.refresh().then((r) => {
-        if (r.role && r.role !== s.role) {
-          updateSession({ token: r.token, role: r.role });
-          const target = dashboardPath(r.role);
-          if (pathname.startsWith("/dashboard") && pathname !== target) {
-            router.push(target);
-          }
-        }
-      }).catch(() => {});
-    }
-  }, []);
+  useEffect(() => { setSession(getSession()); setLoading(false); }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     // Never allow the previous browser account to influence the new login.

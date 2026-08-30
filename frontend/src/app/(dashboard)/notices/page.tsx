@@ -394,9 +394,6 @@ export default function NoticesPage() {
 
   useEffect(() => {
     load();
-    // Auto-refresh so newly published notices appear without a manual reload.
-    const id = setInterval(load, 15000);
-    return () => clearInterval(id);
   }, []);
 
   async function handleDelete(id: number) {

@@ -59,18 +59,4 @@ public class AttendanceController {
 
         return attendanceService.getStudentAttendance(studentId);
     }
-
-    // Whether a student is on approved leave for a given date (used to show "On Leave")
-    @GetMapping("/student/{studentId}/on-leave")
-    public boolean isOnLeave(
-            @PathVariable Long studentId,
-            @RequestParam LocalDate date) {
-        return attendanceService.isOnApprovedLeave(studentId, date);
-    }
-
-    // Overall attendance percentage for a student (used by HOD / Class Teacher overviews)
-    @GetMapping("/student/{studentId}/percentage")
-    public Double getOverallPercentage(@PathVariable Long studentId) {
-        return attendanceService.getOverallAttendancePercentage(studentId);
-    }
 }

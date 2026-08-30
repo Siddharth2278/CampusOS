@@ -3,12 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
-import { useAuth } from "@/context/AuthContext";
-import { clearSession, dashboardPath } from "@/lib/auth";
+import { clearSession } from "@/lib/auth";
 import type { PrincipalDashboard } from "@/lib/types";
 
 export default function PrincipalDashboardPage() {
-  const { session } = useAuth();
   const router = useRouter();
   const [dashboard, setDashboard] = useState<PrincipalDashboard | null>(null);
   const [error, setError] = useState("");
@@ -16,16 +14,12 @@ export default function PrincipalDashboardPage() {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    if (!session || session.role !== "PRINCIPAL") {
-      router.replace(dashboardPath(session?.role ?? "STUDENT"));
-      return;
-    }
     api
       .getPrincipalDashboard()
       .then(setDashboard)
       .catch((e) => setError(e instanceof ApiError ? e.message : "Unable to load principal dashboard."))
       .finally(() => setLoading(false));
-  }, [session?.role]);
+  }, []);
 
   if (loading) {
     return (

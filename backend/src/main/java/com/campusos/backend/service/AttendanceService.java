@@ -11,20 +11,14 @@ import com.campusos.backend.entity.Attendance;
 import com.campusos.backend.entity.Student;
 import com.campusos.backend.entity.Subject;
 import com.campusos.backend.entity.Teacher;
-import com.campusos.backend.entity.User;
 import com.campusos.backend.enums.AttendanceStatus;
-import com.campusos.backend.enums.LeaveStatus;
-import com.campusos.backend.enums.WeekDay;
 import com.campusos.backend.repository.AttendanceRepository;
 import com.campusos.backend.repository.StudentRepository;
 import com.campusos.backend.repository.SubjectRepository;
 import com.campusos.backend.repository.TeacherRepository;
 import com.campusos.backend.repository.FacultyAssignmentRepository;
-import com.campusos.backend.repository.TimetableRepository;
-import com.campusos.backend.repository.LeaveRequestRepository;
+import com.campusos.backend.entity.User;
 import com.campusos.backend.repository.UserRepository;
-
-import java.time.DayOfWeek;
 
 @Service
 public class AttendanceService {
@@ -34,8 +28,6 @@ public class AttendanceService {
     private final SubjectRepository subjectRepository;
     private final TeacherRepository teacherRepository;
     private final FacultyAssignmentRepository facultyAssignmentRepository;
-    private final TimetableRepository timetableRepository;
-    private final LeaveRequestRepository leaveRequestRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
 
@@ -43,12 +35,7 @@ public class AttendanceService {
             AttendanceRepository attendanceRepository,
             StudentRepository studentRepository,
             SubjectRepository subjectRepository,
-            TeacherRepository teacherRepository,
-            FacultyAssignmentRepository facultyAssignmentRepository,
-            TimetableRepository timetableRepository,
-            LeaveRequestRepository leaveRequestRepository,
-            UserRepository userRepository,
-            NotificationService notificationService) {
+            TeacherRepository teacherRepository, FacultyAssignmentRepository facultyAssignmentRepository, UserRepository userRepository, NotificationService notificationService) {
 
         this.attendanceRepository = attendanceRepository;
         this.studentRepository = studentRepository;
@@ -56,8 +43,6 @@ public class AttendanceService {
         this.subjectRepository = subjectRepository;
         this.teacherRepository = teacherRepository;
         this.facultyAssignmentRepository = facultyAssignmentRepository;
-        this.timetableRepository = timetableRepository;
-        this.leaveRequestRepository = leaveRequestRepository;
         this.userRepository = userRepository;
     }
 
@@ -82,20 +67,6 @@ public class AttendanceService {
                 !subject.getDepartment().getId().equals(teacher.getDepartment().getId()) ||
                 !facultyAssignmentRepository.existsByTeacherAndSubject(teacher, subject)) {
             throw new RuntimeException("This subject is not assigned to you by the HOD.");
-        }
-
-        // Only allow attendance for a lecture that actually exists on the timetable
-        // (subject + teacher + weekday + lecture number). If no such lecture exists,
-        // the teacher cannot mark attendance for that slot.
-        DayOfWeek dow = request.getAttendanceDate().getDayOfWeek();
-        if (dow == DayOfWeek.SUNDAY) {
-            throw new RuntimeException("No lectures are scheduled on Sunday — attendance cannot be marked.");
-        }
-        WeekDay weekDay = WeekDay.valueOf(dow.name());
-        if (!timetableRepository.existsBySubjectIdAndTeacherIdAndDayAndLectureNumber(
-                subject.getId(), teacher.getId(), weekDay, request.getLectureNumber())) {
-            throw new RuntimeException("You can only mark attendance for a lecture that appears on the timetable for "
-                    + weekDay + " (Lecture " + request.getLectureNumber() + "). Add the lecture to the timetable first.");
         }
 
         int savedCount = 0;
@@ -195,16 +166,4 @@ public Double getOverallAttendancePercentage(Long studentId) {
 
     return Math.round((presentLectures * 10000.0 / totalLectures)) / 100.0;
 }
-
-    // Returns true if the student is on an APPROVED leave that covers the given date.
-    public boolean isOnApprovedLeave(Long studentId, java.time.LocalDate date) {
-        Student student = studentRepository.findById(studentId).orElse(null);
-        if (student == null) return false;
-        return leaveRequestRepository
-                .findByUserId(student.getUser().getId())
-                .stream()
-                .anyMatch(l -> l.getStatus() == LeaveStatus.APPROVED
-                        && !date.isBefore(l.getStartDate())
-                        && !date.isAfter(l.getEndDate()));
-    }
 }

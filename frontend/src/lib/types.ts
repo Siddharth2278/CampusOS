@@ -15,8 +15,6 @@ export interface AuthMeResponse {
   departmentId?: number;
   semester?: number;
   photoUrl?: string | null;
-  classTeacher?: boolean;
-  classTeacherSemester?: number | null;
 }
 
 export interface LoginResponse {
@@ -52,7 +50,6 @@ export interface Student {
   firstName: string;
   lastName: string;
   email: string;
-  phone?: string;
   semester: number;
   admissionYear: number;
   department?: Department;
@@ -123,13 +120,13 @@ export interface TimetableRequest {
   endTime: string;
 }
 
-export type AttendanceStatus = "PRESENT" | "ABSENT" | "ON_LEAVE";
+export type AttendanceStatus = "PRESENT" | "ABSENT";
 
 export interface AttendanceRecord {
   id: number;
-  student?: Student | null;
-  subject?: Subject | null;
-  teacher?: Teacher | null;
+  student: Student;
+  subject: Subject;
+  teacher: Teacher;
   attendanceDate: string;
   lectureNumber: number;
   status: AttendanceStatus;
@@ -381,8 +378,6 @@ export interface AuthSession {
   semester?: number;
   displayName?: string;
   photoUrl?: string | null;
-  classTeacher?: boolean;
-  classTeacherSemester?: number | null;
 }
 
 export interface ProfileResponse {

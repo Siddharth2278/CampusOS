@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import { Input } from "@/components/ui/Input";
-import type { AttendanceItem, AttendanceRecord, FacultyAssignment, LeaveResponse, Student, Subject } from "@/lib/types";
+import type { AttendanceItem, AttendanceRecord, FacultyAssignment, Student, Subject } from "@/lib/types";
 
 function formatDate(value: string) {
   if (!value) return "";
@@ -18,9 +18,7 @@ function formatDate(value: string) {
 }
 
 function StudentAttendance({ studentId }: { studentId: number }) {
-  const { session } = useAuth();
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
-  const [leaves, setLeaves] = useState<LeaveResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -32,51 +30,9 @@ function StudentAttendance({ studentId }: { studentId: number }) {
       .finally(() => setLoading(false));
   }, [studentId]);
 
-  useEffect(() => {
-    if (session?.userId) {
-      api.getMyLeaves(session.userId).then(setLeaves).catch(() => undefined);
-    }
-  }, [studentId, session?.userId]);
-
-  const approvedLeaves = useMemo(
-    () => leaves.filter((l) => l.status === "APPROVED"),
-    [leaves],
-  );
-  function isOnLeave(dateStr: string) {
-    return approvedLeaves.some((l) => dateStr >= l.startDate && dateStr <= l.endDate);
-  }
-
   const total = records.length;
   const present = records.filter((r) => r.status === "PRESENT").length;
   const percentage = total ? ((present / total) * 100).toFixed(1) : "0.0";
-
-  // Build a display list that also includes "On Leave" rows for approved-leave
-  // days which have no attendance record yet, so leave is always visible.
-  const displayRecords = useMemo<AttendanceRecord[]>(() => {
-    const result = [...records];
-    const datesWithRecords = new Set(records.map((r) => r.attendanceDate));
-    let syntheticId = -1;
-    approvedLeaves.forEach((l) => {
-      const start = new Date(l.startDate);
-      const end = new Date(l.endDate);
-      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-        const dateStr = d.toISOString().slice(0, 10);
-        if (!datesWithRecords.has(dateStr)) {
-          datesWithRecords.add(dateStr);
-          result.push({
-            id: syntheticId--,
-            student: null,
-            subject: null,
-            teacher: null,
-            attendanceDate: dateStr,
-            lectureNumber: 0,
-            status: "ON_LEAVE",
-          });
-        }
-      }
-    });
-    return result;
-  }, [records, approvedLeaves]);
 
   const bySubject = useMemo(() => {
     const map = new Map<string, { present: number; total: number }>();
@@ -126,20 +82,6 @@ function StudentAttendance({ studentId }: { studentId: number }) {
         )}
       </div>
 
-      {approvedLeaves.length > 0 ? (
-        <div className="campus-card p-6 lg:p-8 campus-reveal">
-          <h2 className="text-xl font-semibold text-ink mb-6 pb-4 border-b border-hairline">Approved Leaves</h2>
-          <div className="space-y-2">
-            {approvedLeaves.map((l) => (
-              <div key={l.id} className="flex items-center justify-between rounded-xl border border-hairline bg-paper/50 px-4 py-3">
-                <span className="font-medium text-ink">{l.leaveType} · {l.reason}</span>
-                <span className="text-xs font-medium text-slate">{formatDate(l.startDate)} → {formatDate(l.endDate)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
       <div className="campus-card p-6 lg:p-8 campus-reveal">
         <h2 className="text-xl font-semibold text-ink mb-6 pb-4 border-b border-hairline">Recent Lectures</h2>
         {records.length === 0 ? (
@@ -155,35 +97,25 @@ function StudentAttendance({ studentId }: { studentId: number }) {
                   <th className="py-3 px-4 rounded-tr-lg">Status</th>
                 </tr>
               </thead>
-               <tbody className="divide-y divide-hairline">
-                 {[...displayRecords]
-                   .sort((a, b) => b.attendanceDate.localeCompare(a.attendanceDate))
-                   .slice(0, 30)
-                   .map((record) => (
-                     <tr key={record.id} className="transition-colors">
-                       <td className="py-3 px-4 text-ink-soft font-medium">{formatDate(record.attendanceDate)}</td>
-                       <td className="py-3 px-4 text-ink font-medium">{record.subject?.name ?? "All Subjects"}</td>
-                       <td className="py-3 px-4 text-slate">{record.lectureNumber ? `#${record.lectureNumber}` : "—"}</td>
-                       <td className="py-3 px-4">
-                         {record.status === "ON_LEAVE" ? (
-                           <span className="rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider bg-gold-tint text-gold border border-gold/20">
-                             On Leave
-                           </span>
-                         ) : isOnLeave(record.attendanceDate) ? (
-                           <span className="rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider bg-gold-tint text-gold border border-gold/20">
-                             On Leave
-                           </span>
-                         ) : (
-                           <span className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${
-                             record.status === "PRESENT" ? "bg-moss-tint text-moss border border-moss/20" : "bg-brick-tint text-brick border border-brick/20"
-                           }`}>
-                             {record.status}
-                           </span>
-                         )}
-                       </td>
-                     </tr>
-                   ))}
-               </tbody>
+              <tbody className="divide-y divide-hairline">
+                {[...records]
+                  .sort((a, b) => b.attendanceDate.localeCompare(a.attendanceDate))
+                  .slice(0, 30)
+                  .map((record) => (
+                    <tr key={record.id} className="transition-colors">
+                      <td className="py-3 px-4 text-ink-soft font-medium">{formatDate(record.attendanceDate)}</td>
+                      <td className="py-3 px-4 text-ink font-medium">{record.subject?.name}</td>
+                      <td className="py-3 px-4 text-slate">#{record.lectureNumber}</td>
+                      <td className="py-3 px-4">
+                        <span className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${
+                          record.status === "PRESENT" ? "bg-moss-tint text-moss border border-moss/20" : "bg-brick-tint text-brick border border-brick/20"
+                        }`}>
+                          {record.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
             </table>
           </div>
         )}
@@ -204,7 +136,6 @@ function TeacherAttendance({ teacherId }: { teacherId: number }) {
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sheet, setSheet] = useState<AttendanceRecord[] | null>(null);
-  const [onLeaveMap, setOnLeaveMap] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     Promise.all([api.getMyFacultyAssignments(), api.getStudents()])
@@ -231,15 +162,6 @@ function TeacherAttendance({ teacherId }: { teacherId: number }) {
     });
     setStatuses(next);
   }, [rosterStudents]);
-
-  useEffect(() => {
-    if (!selectedSubject || !date || rosterStudents.length === 0) { setOnLeaveMap({}); return; }
-    let cancelled = false;
-    Promise.all(rosterStudents.map(async (s) => [s.id, await api.getStudentOnLeave(s.id, date)] as const))
-      .then((rows) => { if (!cancelled) setOnLeaveMap(Object.fromEntries(rows)); })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [selectedSubject, date, rosterStudents]);
 
   async function handleSubmit() {
     if (!selectedSubject) return;
@@ -276,27 +198,6 @@ function TeacherAttendance({ teacherId }: { teacherId: number }) {
     } catch {
       setSheet([]);
     }
-  }
-
-  function downloadSheetCsv() {
-    if (!sheet || sheet.length === 0) return;
-    const rows = [["Student", "Enrollment", "Subject", "Date", "Lecture", "Status"]];
-    sheet.forEach((r) => rows.push([
-      `${r.student?.firstName ?? ""} ${r.student?.lastName ?? ""}`,
-      r.student?.enrollmentNumber ?? "",
-      r.subject?.name ?? "",
-      r.attendanceDate,
-      String(r.lectureNumber),
-      r.status,
-    ]));
-    const csv = rows.map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `attendance-${selectedSubject?.name ?? "subject"}-${date}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
   }
 
   if (loading) return <div className="animate-breathe text-brass font-medium py-4">Loading your subjects...</div>;
@@ -347,12 +248,7 @@ function TeacherAttendance({ teacherId }: { teacherId: number }) {
                 {rosterStudents.map((student) => (
                   <div key={student.id} className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-hairline bg-white px-5 py-4 shadow-sm hover:border-slate-300 transition-colors">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-ink">{student.firstName} {student.lastName}</p>
-                        {onLeaveMap[student.id] ? (
-                          <span className="rounded-full bg-gold-tint border border-gold/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gold">On Leave</span>
-                        ) : null}
-                      </div>
+                      <p className="font-semibold text-ink">{student.firstName} {student.lastName}</p>
                       <p className="text-xs text-ink-soft mt-0.5">Roll: <span className="font-medium text-slate">{student.rollNumber}</span> · {student.enrollmentNumber}</p>
                     </div>
                     <div className="flex gap-2 bg-slate-tint p-1 rounded-lg border border-hairline">
@@ -397,14 +293,9 @@ function TeacherAttendance({ teacherId }: { teacherId: number }) {
 
       {sheet ? (
         <div className="campus-card p-6 lg:p-8 campus-reveal">
-          <div className="mb-6 border-b border-hairline pb-4 flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-semibold text-ink">Attendance Sheet</h2>
-              <p className="mt-1 text-sm text-ink-soft">Recorded for {formatDate(date)}</p>
-            </div>
-            <Button variant="secondary" onClick={downloadSheetCsv} disabled={!sheet || sheet.length === 0} className="bg-slate-tint text-ink hover:bg-hairline px-4 text-sm">
-              Download CSV
-            </Button>
+          <div className="mb-6 border-b border-hairline pb-4">
+            <h2 className="text-xl font-semibold text-ink">Attendance Sheet</h2>
+            <p className="mt-1 text-sm text-ink-soft">Recorded for {formatDate(date)}</p>
           </div>
           
           {sheet.length === 0 ? (
@@ -429,138 +320,6 @@ function TeacherAttendance({ teacherId }: { teacherId: number }) {
   );
 }
 
-function AttendanceOverview({ scope, filterDept, filterSemester }: { scope: "HOD" | "CLASS"; filterDept: number; filterSemester?: number }) {
-  const [students, setStudents] = useState<Student[]>([]);
-  const [stats, setStats] = useState<Record<number, number>>({});
-  const [onLeave, setOnLeave] = useState<Record<number, boolean>>({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [detail, setDetail] = useState<{ subject: string; present: number; total: number }[] | null>(null);
-
-  useEffect(() => {
-    setLoading(true); setError("");
-    const today = new Date().toISOString().slice(0, 10);
-    api.getStudents()
-      .then(async (all) => {
-        const list = all.filter(
-          (s) => s.department?.id === filterDept && (filterSemester == null || s.semester === filterSemester)
-        );
-        setStudents(list);
-        const [pcts, leaves] = await Promise.all([
-          Promise.all(list.map(async (s) => {
-            try { return [s.id, Math.round(await api.getStudentAttendancePercentage(s.id))] as const; }
-            catch { return [s.id, 0] as const; }
-          })),
-          Promise.all(list.map(async (s) => {
-            try { return [s.id, await api.getStudentOnLeave(s.id, today)] as const; }
-            catch { return [s.id, false] as const; }
-          })),
-        ]);
-        setStats(Object.fromEntries(pcts));
-        setOnLeave(Object.fromEntries(leaves));
-      })
-      .catch((e) => setError(e instanceof ApiError ? e.message : "Unable to load students."))
-      .finally(() => setLoading(false));
-  }, [filterDept, filterSemester]);
-
-  async function openStudent(id: number) {
-    setExpandedId(id); setDetail(null);
-    try {
-      const recs = await api.getStudentAttendance(id);
-      const map: Record<string, { present: number; total: number }> = {};
-      recs.forEach((r) => {
-        const name = r.subject?.name ?? "Unknown";
-        if (!map[name]) map[name] = { present: 0, total: 0 };
-        map[name].total += 1;
-        if (r.status === "PRESENT") map[name].present += 1;
-      });
-      setDetail(Object.entries(map).map(([subject, v]) => ({ subject, ...v })));
-    } catch { setDetail([]); }
-  }
-
-  function downloadCsv() {
-    const rows = [["Name", "Enrollment", "Semester", "Attendance %"]];
-    students.forEach((s) => rows.push([`${s.firstName} ${s.lastName}`, s.enrollmentNumber, String(s.semester), String(stats[s.id] ?? 0)]));
-    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `attendance-${scope}-${filterDept}${filterSemester ? `-sem${filterSemester}` : ""}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  if (loading) return <div className="animate-breathe text-brass font-medium py-4">Loading attendance overview...</div>;
-  if (error) return <div className="campus-card bg-brick-tint border-brick/30 p-6 text-sm font-medium text-brick">{error}</div>;
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="text-xl font-semibold text-ink">
-          {scope === "HOD" ? "Department Attendance Overview" : `Class Attendance — Semester ${filterSemester}`}
-        </h2>
-        <Button variant="secondary" onClick={downloadCsv} className="bg-slate-tint text-ink hover:bg-hairline px-5">
-          Download CSV
-        </Button>
-      </div>
-
-      {students.length === 0 ? (
-        <div className="campus-card p-8 text-center bg-slate-tint/50 border border-dashed border-slate/30">
-          <p className="text-sm font-medium text-slate">No students found for this {scope === "HOD" ? "department" : "class"}.</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {students.map((s) => {
-            const pct = stats[s.id] ?? 0;
-            const low = pct < 70;
-            return (
-              <div key={s.id} className="rounded-xl border border-hairline bg-paper/50">
-                <button onClick={() => openStudent(s.id)} className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left hover:bg-white/60 transition-colors">
-                  <div>
-                    <p className="font-semibold text-ink">{s.firstName} {s.lastName}</p>
-                    <p className="text-xs font-medium text-slate mt-0.5">{s.enrollmentNumber} · Sem {s.semester}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {onLeave[s.id] ? (
-                      <span className="rounded-full bg-gold-tint border border-gold/20 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-gold">On Leave Today</span>
-                    ) : null}
-                    <span className={`rounded-full px-3 py-1 text-sm font-bold ${low ? "bg-brick-tint text-brick border border-brick/20" : "bg-moss-tint text-moss border border-moss/20"}`}>
-                      {pct}%
-                    </span>
-                  </div>
-                </button>
-                {expandedId === s.id ? (
-                  <div className="border-t border-hairline px-5 py-4">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate mb-3">Subject-wise Breakdown</p>
-                    {detail == null ? (
-                      <p className="text-sm text-slate animate-breathe">Loading...</p>
-                    ) : detail.length === 0 ? (
-                      <p className="text-sm text-slate">No attendance recorded yet.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {detail.map((d) => (
-                          <div key={d.subject} className="flex items-center justify-between rounded-lg border border-hairline bg-white px-4 py-2">
-                            <span className="font-medium text-ink">{d.subject}</span>
-                            <span className="text-sm font-semibold text-ink">
-                              {d.total ? Math.round((d.present / d.total) * 100) : 0}% <span className="text-xs text-slate">({d.present}/{d.total})</span>
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ) : null}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function AttendancePage() {
   const { session } = useAuth();
 
@@ -581,14 +340,6 @@ export default function AttendancePage() {
 
       {(session?.role === "TEACHER" || session?.role === "HOD") && session.profileId ? (
         <TeacherAttendance teacherId={session.profileId} />
-      ) : null}
-
-      {session?.role === "HOD" && session.departmentId ? (
-        <AttendanceOverview scope="HOD" filterDept={session.departmentId} />
-      ) : null}
-
-      {session?.role === "TEACHER" && session.classTeacher && session.departmentId != null && session.classTeacherSemester != null ? (
-        <AttendanceOverview scope="CLASS" filterDept={session.departmentId} filterSemester={session.classTeacherSemester} />
       ) : null}
 
       {session?.role === "PRINCIPAL" ? (

@@ -1,0 +1,10 @@
+[33m82c810b[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mworking-auth-fixed[m[33m, [m[1;31morigin/working-auth-fixed[m[33m)[m database issue fixed supabase
+[33m3544736[m Update frontend dependencies and Next.js config
+[33m8838dd8[m Add notification bell, toast UI, and progress export
+[33m5adee2e[m Update frontend API client and type definitions
+[33m5ee78b4[m Fix backend exception handling and security config
+[33m4910be9[m Fix SubjectRepository queries
+[33m9a789eb[m Add StudentProgress module (entity, repo, service, controller, DTOs)
+[33m9df3877[m Add SeedData for auto-inserting sample data on startup
+[33m2d0c18f[m[33m ([m[1;32mbackup-before-force-push[m[33m)[m all fixed
+[33me223c62[m Revert "bugs fixed"

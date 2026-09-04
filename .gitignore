@@ -37,6 +37,10 @@ coverage/
 *.tmp
 *.temp
 
+# H2 database files (should never be committed)
+*.mv.db
+*.trace.db
+
 *.tsbuildinfo
 
 CAMPUSOS_PLAN.zip

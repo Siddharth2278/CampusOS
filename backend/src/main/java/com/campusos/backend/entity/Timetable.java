@@ -32,7 +32,7 @@ public class Timetable {
 
     // Monday - Saturday
     @Enumerated(EnumType.STRING)
-    @Column(name = "day_of_week", nullable = false)
+    @Column(nullable = false)
     private WeekDay day;
 
     // Lecture Number

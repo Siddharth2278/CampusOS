@@ -19,6 +19,7 @@ const baseNavItems = [
   { href: "/leaves", label: "Leaves", match: "/leaves" },
   { href: "/calendar", label: "Calendar", match: "/calendar" },
   { href: "/notices", label: "Notices", match: "/notices" },
+  { href: "/complaints", label: "Complaints", match: "/complaints" },
 ];
 const directoryItem = { href: "/directory", label: "Directory", match: "/directory" };
 
@@ -98,6 +99,7 @@ function DashboardIcon({ type }: { type: string }) {
     Leaves: "M7 4h10v16H7zM10 8h4M10 12h4M10 16h4",
     Calendar: "M5 5h14v14H5zM8 3v4M16 3v4M5 10h14",
     Notices: "M5 9a7 7 0 0 1 14 0v5l2 2H3l2-2zM10 20h4",
+    Complaints: "M5 5h14v14H5zM8 8h8M8 12h5M8 16h6",
     Notifications: "M6 9a6 6 0 1 1 12 0c0 4 2 5 2 6H4c0-1 2-2 2-6zM10 19h4",
     Directory: "M5 5h14v14H5zM9 9h2M13 9h2M9 13h6",
     Approvals: "M5 5h14v14H5zM8 12l3 3 5-6",
@@ -188,6 +190,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { session, logout } = useAuth();
   const [unread, setUnread] = useState(0);
+  const [complaintCount, setComplaintCount] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const lastSavedRoute = useRef("");
@@ -212,6 +215,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             baseNavItems[5],
             baseNavItems[6],
             baseNavItems[7],
+            baseNavItems[8],
             directoryItem,
             { href: "/approvals", label: "Approvals", match: "/approvals" },
           ]
@@ -225,6 +229,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               baseNavItems[5],
               baseNavItems[6],
               baseNavItems[7],
+              baseNavItems[8],
               { href: "/approvals", label: "Student approvals", match: "/approvals" },
             ]
           : [

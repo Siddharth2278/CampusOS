@@ -29,6 +29,9 @@ import type {
   TeacherDashboard,
   TimetableEntry,
   TimetableRequest,
+  Complaint,
+  ComplaintRequest,
+  ComplaintDecisionRequest,
 } from "./types";
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
@@ -380,4 +383,18 @@ export const api = {
       method: "PUT",
       body: { departmentId, fromSemester },
     }),
+
+  // ---------- Complaints ----------
+  raiseComplaint: (body: ComplaintRequest) =>
+    apiRequest<Complaint>("/api/complaints", { method: "POST", body }),
+  getMyComplaints: () =>
+    apiRequest<Complaint[]>("/api/complaints/my"),
+  getTeacherComplaints: () =>
+    apiRequest<Complaint[]>("/api/complaints/teacher/all"),
+  getTeacherOpenComplaints: () =>
+    apiRequest<Complaint[]>("/api/complaints/teacher/open"),
+  getTeacherOpenComplaintCount: () =>
+    apiRequest<number>("/api/complaints/teacher/open-count"),
+  decideComplaint: (complaintId: number, body: ComplaintDecisionRequest) =>
+    apiRequest<Complaint>(`/api/complaints/${complaintId}/decision`, { method: "PUT", body }),
 };

@@ -394,3 +394,35 @@ export interface ProfileResponse {
   semester: number | null;
   photoUrl: string | null;
 }
+
+// ---------- Complaints ----------
+export type ComplaintCategory = "ACADEMIC" | "FACULTY" | "INFRASTRUCTURE" | "DISCIPLINE" | "EXAMINATION" | "FEE" | "OTHER";
+export type ComplaintStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "REJECTED";
+
+export interface Complaint {
+  id: number;
+  studentName: string;
+  studentId: number;
+  classTeacherName: string;
+  classTeacherId: number;
+  category: ComplaintCategory;
+  title: string;
+  description: string;
+  status: ComplaintStatus;
+  resolution: string | null;
+  resolvedByName: string | null;
+  createdAt: string | null;
+  resolvedAt: string | null;
+}
+
+export interface ComplaintRequest {
+  studentId: number;
+  category: ComplaintCategory;
+  title: string;
+  description: string;
+}
+
+export interface ComplaintDecisionRequest {
+  status: ComplaintStatus;
+  resolution: string;
+}

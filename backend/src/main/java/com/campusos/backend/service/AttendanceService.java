@@ -69,52 +69,60 @@ public class AttendanceService {
             throw new RuntimeException("This subject is not assigned to you by the HOD.");
         }
 
-        int savedCount = 0;
+        LocalDate requestDate = request.getAttendanceDate();
+        if (!requestDate.equals(LocalDate.now())) {
+            throw new RuntimeException("Attendance can only be marked or edited for today's date.");
+        }
 
+        List<Attendance> existingRecords = attendanceRepository
+                .findByStudentIdAndSubjectIdAndAttendanceDateAndLectureNumber(
+                        null, request.getSubjectId(), requestDate, request.getLectureNumber());
+
+        boolean isUpdate = !existingRecords.isEmpty();
+
+        int count = 0;
         for (AttendanceItem item : request.getAttendanceItems()) {
-
             Student student = studentRepository.findById(item.getStudentId())
                     .orElseThrow(() -> new RuntimeException("Student not found"));
 
-            boolean exists = attendanceRepository
-                    .existsByStudentIdAndSubjectIdAndAttendanceDateAndLectureNumber(
-                            item.getStudentId(),
-                            request.getSubjectId(),
-                            request.getAttendanceDate(),
-                            request.getLectureNumber());
+            AttendanceStatus newStatus = AttendanceStatus.valueOf(item.getStatus().toUpperCase());
 
-            if (exists) {
-                continue;
+            List<Attendance> existing = attendanceRepository
+                    .findByStudentIdAndSubjectIdAndAttendanceDateAndLectureNumber(
+                            item.getStudentId(), request.getSubjectId(), requestDate, request.getLectureNumber());
+
+            if (!existing.isEmpty()) {
+                Attendance att = existing.get(0);
+                if (att.getStatus() != newStatus) {
+                    att.setStatus(newStatus);
+                    attendanceRepository.save(att);
+                    count++;
+                }
+            } else {
+                Attendance attendance = new Attendance();
+                attendance.setStudent(student);
+                attendance.setSubject(subject);
+                attendance.setTeacher(teacher);
+                attendance.setAttendanceDate(requestDate);
+                attendance.setLectureNumber(request.getLectureNumber());
+                attendance.setStatus(newStatus);
+                attendanceRepository.save(attendance);
+
+                notificationService.createNotification(
+                        student.getUser().getId(),
+                        "Attendance recorded",
+                        "You were marked " + newStatus + " for " + subject.getName()
+                                + " (Lecture " + request.getLectureNumber() + ", " + requestDate + ").",
+                        "ATTENDANCE");
+                count++;
             }
-
-            Attendance attendance = new Attendance();
-
-            attendance.setStudent(student);
-            attendance.setSubject(subject);
-            attendance.setTeacher(teacher);
-            attendance.setAttendanceDate(request.getAttendanceDate());
-            attendance.setLectureNumber(request.getLectureNumber());
-            attendance.setStatus(
-                    AttendanceStatus.valueOf(item.getStatus().toUpperCase()));
-
-            attendanceRepository.save(attendance);
-
-            notificationService.createNotification(
-                    student.getUser().getId(),
-                    "Attendance recorded",
-                    "You were marked " + attendance.getStatus() + " for " + subject.getName()
-                            + " (Lecture " + request.getLectureNumber() + ", "
-                            + request.getAttendanceDate() + ").",
-                    "ATTENDANCE");
-
-            savedCount++;
         }
 
-        if (savedCount == 0) {
-            return "Attendance already marked.";
+        if (count == 0) {
+            return isUpdate ? "No changes — attendance already matches." : "Attendance already marked.";
         }
 
-        return savedCount + " attendance record(s) saved successfully.";
+        return (isUpdate ? "Attendance updated: " : "Attendance saved: ") + count + " record(s).";
     }
 
     // Student subject-wise attendance history

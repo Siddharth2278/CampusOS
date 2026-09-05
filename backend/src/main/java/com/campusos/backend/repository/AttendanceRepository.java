@@ -24,6 +24,9 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
 
     long countByStudentIdAndStatus(Long studentId, com.campusos.backend.enums.AttendanceStatus status);
 
+    List<Attendance> findByStudentIdAndSubjectIdAndAttendanceDateAndLectureNumber(
+            Long studentId, Long subjectId, LocalDate attendanceDate, Integer lectureNumber);
+
     List<Attendance> findBySubjectIdAndAttendanceDateBetweenOrderByAttendanceDateAscStudentRollNumberAsc(
             Long subjectId, LocalDate fromDate, LocalDate toDate);
 }

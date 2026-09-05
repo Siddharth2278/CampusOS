@@ -182,7 +182,7 @@ function TeacherAttendance({ teacherId }: { teacherId: number }) {
     );
   }, [selectedSubject, date, lectureNumber, timetable, selectedDay]);
 
-  const canMarkAttendance = hasTimetableSlot;
+  const canMarkAttendance = hasTimetableSlot && date === new Date().toISOString().slice(0, 10);
 
   useEffect(() => {
     const next: Record<number, "PRESENT" | "ABSENT"> = {};
@@ -257,7 +257,7 @@ function TeacherAttendance({ teacherId }: { teacherId: number }) {
               </option>
             ))}
           </Select>
-          <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} max={new Date().toISOString().slice(0, 10)} />
           <Input label="Lecture Number" type="number" min={1} value={lectureNumber} onChange={(e) => setLectureNumber(e.target.value)} />
         </div>
 
@@ -268,7 +268,9 @@ function TeacherAttendance({ teacherId }: { teacherId: number }) {
               <span className={`text-sm font-semibold ${canMarkAttendance ? "text-moss" : "text-brick"}`}>
                 {canMarkAttendance
                   ? `Lecture scheduled — you can mark attendance for ${selectedSubject.name} on ${selectedDay} #${lectureNumber}`
-                  : `No lecture scheduled for ${selectedSubject.name} on ${selectedDay} #${lectureNumber}. Attendance cannot be marked.`}
+                  : date !== new Date().toISOString().slice(0, 10)
+                    ? "Attendance can only be marked or edited for today's date."
+                    : `No lecture scheduled for ${selectedSubject.name} on ${selectedDay} #${lectureNumber}. Attendance cannot be marked.`}
               </span>
             </div>
           </div>

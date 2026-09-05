@@ -59,4 +59,14 @@ public class AttendanceController {
 
         return attendanceService.getStudentAttendance(studentId);
     }
+
+    // Filterable attendance report for download
+    @GetMapping("/report")
+    public List<Attendance> getAttendanceReport(
+            @RequestParam Long subjectId,
+            @RequestParam LocalDate fromDate,
+            @RequestParam LocalDate toDate) {
+
+        return attendanceService.getAttendanceReport(subjectId, fromDate, toDate);
+    }
 }

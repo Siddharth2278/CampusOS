@@ -151,6 +151,14 @@ public class AttendanceService {
 
         return attendanceRepository.findByStudentId(studentId);
     }
+
+    // Filterable attendance report for download
+    public List<Attendance> getAttendanceReport(Long subjectId, LocalDate fromDate, LocalDate toDate) {
+        return attendanceRepository
+                .findBySubjectIdAndAttendanceDateBetweenOrderByAttendanceDateAscStudentRollNumberAsc(
+                        subjectId, fromDate, toDate);
+    }
+
     // Overall Attendance Percentage
 public Double getOverallAttendancePercentage(Long studentId) {
 

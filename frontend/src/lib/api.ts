@@ -294,6 +294,10 @@ export const api = {
     apiRequest<AttendanceRecord[]>(`/api/attendance/subject/${subjectId}`, {
       query: { date },
     }),
+  getAttendanceReport: (subjectId: number, fromDate: string, toDate: string) =>
+    apiRequest<AttendanceRecord[]>(`/api/attendance/report`, {
+      query: { subjectId, fromDate, toDate },
+    }),
 
   // ---------- Assignments ----------
   createAssignment: (form: FormData) =>

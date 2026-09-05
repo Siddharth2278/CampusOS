@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import { Input } from "@/components/ui/Input";
-import { downloadAttendanceCSV } from "@/lib/downloadAttendance";
+import { downloadAttendanceCSV, downloadAttendanceMatrixCSV } from "@/lib/downloadAttendance";
 import type { AttendanceItem, AttendanceRecord, FacultyAssignment, Student, Subject, TimetableEntry } from "@/lib/types";
 
 function formatDate(value: string) {
@@ -370,6 +370,89 @@ function TeacherAttendance({ teacherId }: { teacherId: number }) {
           )}
         </div>
       ) : null}
+
+      <DownloadReportSection mySubjects={mySubjects} />
+    </div>
+  );
+}
+
+function DownloadReportSection({ mySubjects }: { mySubjects: Subject[] }) {
+  const [subjectId, setSubjectId] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  const maxDate = new Date().toISOString().slice(0, 10);
+  const minDate = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 115);
+    return d.toISOString().slice(0, 10);
+  })();
+
+  const selectedSubject = mySubjects.find((s) => String(s.id) === subjectId);
+
+  const dateRangeValid = useMemo(() => {
+    if (!fromDate || !toDate) return false;
+    const from = new Date(fromDate);
+    const to = new Date(toDate);
+    const diffDays = (to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24);
+    return diffDays >= 0 && diffDays <= 115;
+  }, [fromDate, toDate]);
+
+  async function handleDownload() {
+    if (!subjectId || !fromDate || !toDate || !dateRangeValid) return;
+    setLoading(true);
+    setError("");
+    setMessage("");
+    try {
+      const records = await api.getAttendanceReport(Number(subjectId), fromDate, toDate);
+      if (records.length === 0) {
+        setError("No attendance records found for the selected subject and date range.");
+        return;
+      }
+      downloadAttendanceMatrixCSV(records, selectedSubject?.name ?? "Subject", fromDate, toDate);
+      setMessage(`Downloaded attendance for ${records.length} records.`);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Failed to fetch attendance report.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="campus-card p-6 lg:p-8 campus-reveal">
+      <div className="mb-6 border-b border-hairline pb-4">
+        <h2 className="text-xl font-semibold text-ink">Download Attendance Report</h2>
+        <p className="mt-1 text-sm text-ink-soft">Select a subject and date range (up to 115 days) to download a matrix report with date columns and student rows.</p>
+      </div>
+
+      <div className="grid gap-5 sm:grid-cols-3">
+        <Select label="Subject" value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
+          <option value="">Select subject</option>
+          {mySubjects.map((subject) => (
+            <option key={subject.id} value={subject.id}>{subject.name} · Sem {subject.semester}</option>
+          ))}
+        </Select>
+        <Input label="From Date" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} min={minDate} max={maxDate} />
+        <Input label="To Date" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} min={fromDate || minDate} max={maxDate} />
+      </div>
+
+      {fromDate && toDate && !dateRangeValid && (
+        <p className="mt-3 text-xs font-semibold text-brick">Date range must be between 0 and 115 days.</p>
+      )}
+
+      {error ? <p className="mt-4 text-sm font-medium text-brick bg-brick-tint p-3 rounded-lg">{error}</p> : null}
+      {message ? <p className="mt-4 text-sm font-medium text-moss bg-moss-tint p-3 rounded-lg">{message}</p> : null}
+
+      <Button
+        onClick={handleDownload}
+        disabled={loading || !subjectId || !fromDate || !toDate || !dateRangeValid}
+        className="mt-6 bg-brass text-white hover:bg-brass-light px-8"
+      >
+        {loading ? "Generating..." : "Download Report (CSV)"}
+      </Button>
     </div>
   );
 }

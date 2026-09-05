@@ -397,4 +397,8 @@ export const api = {
     apiRequest<number>("/api/complaints/teacher/open-count"),
   decideComplaint: (complaintId: number, body: ComplaintDecisionRequest) =>
     apiRequest<Complaint>(`/api/complaints/${complaintId}/decision`, { method: "PUT", body }),
+
+  // ---------- On-leave students ----------
+  getOnLeaveStudentIds: (date: string) =>
+    apiRequest<number[]>(`/api/leaves/on-leave-student-ids?date=${date}`),
 };

@@ -374,4 +374,8 @@ public List<LeaveResponseDto> getLeavesByType(
             .collect(Collectors.toList());
 }
 
+public List<Long> getOnLeaveStudentUserIds(LocalDate date) {
+    return leaveRequestRepository.findOnLeaveStudentUserIds(LeaveStatus.APPROVED, date);
+}
+
 }

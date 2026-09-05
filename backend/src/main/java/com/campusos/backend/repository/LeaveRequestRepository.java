@@ -11,6 +11,11 @@ import com.campusos.backend.enums.LeaveRole;
 import com.campusos.backend.enums.LeaveStatus;
 import com.campusos.backend.enums.LeaveType;
 
+import java.time.LocalDate;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
 
 public interface LeaveRequestRepository
         extends JpaRepository<LeaveRequest, Long> {
@@ -51,5 +56,8 @@ List<LeaveRequest> findByLeaveTypeOrderByCreatedAtDesc(
 List<LeaveRequest> findByCreatedAtBetween(
         LocalDateTime start,
         LocalDateTime end);
+
+@Query("SELECT l.user.id FROM LeaveRequest l WHERE l.status = :status AND l.leaveRole = 'STUDENT' AND l.startDate <= :date AND l.endDate >= :date")
+List<Long> findOnLeaveStudentUserIds(@Param("status") LeaveStatus status, @Param("date") LocalDate date);
 
 }

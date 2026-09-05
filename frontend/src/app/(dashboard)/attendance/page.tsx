@@ -146,6 +146,7 @@ function TeacherAttendance({ teacherId }: { teacherId: number }) {
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sheet, setSheet] = useState<AttendanceRecord[] | null>(null);
+  const [onLeaveUserIds, setOnLeaveUserIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     Promise.all([
@@ -185,6 +186,12 @@ function TeacherAttendance({ teacherId }: { teacherId: number }) {
   const canMarkAttendance = hasTimetableSlot && date === new Date().toISOString().slice(0, 10);
 
   useEffect(() => {
+    api.getOnLeaveStudentIds(date)
+      .then((ids) => setOnLeaveUserIds(new Set(ids)))
+      .catch(() => setOnLeaveUserIds(new Set()));
+  }, [date]);
+
+  useEffect(() => {
     if (!selectedSubject || !date) return;
     api.getAttendanceBySubject(selectedSubject.id, date)
       .then((records) => {
@@ -218,7 +225,7 @@ function TeacherAttendance({ teacherId }: { teacherId: number }) {
 
     const attendanceItems: AttendanceItem[] = rosterStudents.map((s) => ({
       studentId: s.id,
-      status: statuses[s.id] ?? "PRESENT",
+      status: onLeaveUserIds.has(s.user?.id ?? s.id) ? "ABSENT" : (statuses[s.id] ?? "PRESENT"),
     }));
 
     try {
@@ -307,34 +314,46 @@ function TeacherAttendance({ teacherId }: { teacherId: number }) {
                   <span className="text-xs font-medium bg-slate-tint text-slate px-3 py-1 rounded-full">{rosterStudents.length} Students</span>
                 </div>
 
-                {rosterStudents.map((student) => (
-                  <div key={student.id} className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-hairline bg-white px-5 py-4 shadow-sm hover:border-slate-300 transition-colors">
-                    <div>
-                      <p className="font-semibold text-ink">{student.firstName} {student.lastName}</p>
-                      <p className="text-xs text-ink-soft mt-0.5">Roll: <span className="font-medium text-slate">{student.rollNumber}</span> · {student.enrollmentNumber}</p>
+                {rosterStudents.map((student) => {
+                  const isOnLeave = onLeaveUserIds.has(student.user?.id ?? student.id);
+                  return (
+                    <div key={student.id} className={`flex flex-wrap items-center justify-between gap-4 rounded-xl border border-hairline bg-white px-5 py-4 shadow-sm transition-colors ${isOnLeave ? "border-gold/40 bg-gold-tint/20" : "hover:border-slate-300"}`}>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-ink">{student.firstName} {student.lastName}</p>
+                          {isOnLeave && (
+                            <span className="inline-flex rounded-full bg-gold-tint border border-gold/20 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gold">On Leave</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-ink-soft mt-0.5">Roll: <span className="font-medium text-slate">{student.rollNumber}</span> · {student.enrollmentNumber}</p>
+                      </div>
+                      {isOnLeave ? (
+                        <span className="text-xs font-semibold text-gold bg-gold-tint px-4 py-2 rounded-lg border border-gold/20">Leave Approved</span>
+                      ) : (
+                        <div className="flex gap-2 bg-slate-tint p-1 rounded-lg border border-hairline">
+                          <button
+                            type="button"
+                            onClick={() => setStatuses((current) => ({ ...current, [student.id]: "PRESENT" }))}
+                            className={`rounded-md px-4 py-1.5 text-xs font-bold uppercase tracking-wide transition-all ${
+                              statuses[student.id] === "PRESENT" ? "bg-moss text-white shadow-sm" : "text-slate hover:text-ink"
+                            }`}
+                          >
+                            Present
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setStatuses((current) => ({ ...current, [student.id]: "ABSENT" }))}
+                            className={`rounded-md px-4 py-1.5 text-xs font-bold uppercase tracking-wide transition-all ${
+                              statuses[student.id] === "ABSENT" ? "bg-brick text-white shadow-sm" : "text-slate hover:text-ink"
+                            }`}
+                          >
+                            Absent
+                          </button>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex gap-2 bg-slate-tint p-1 rounded-lg border border-hairline">
-                      <button
-                        type="button"
-                        onClick={() => setStatuses((current) => ({ ...current, [student.id]: "PRESENT" }))}
-                        className={`rounded-md px-4 py-1.5 text-xs font-bold uppercase tracking-wide transition-all ${
-                          statuses[student.id] === "PRESENT" ? "bg-moss text-white shadow-sm" : "text-slate hover:text-ink"
-                        }`}
-                      >
-                        Present
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setStatuses((current) => ({ ...current, [student.id]: "ABSENT" }))}
-                        className={`rounded-md px-4 py-1.5 text-xs font-bold uppercase tracking-wide transition-all ${
-                          statuses[student.id] === "ABSENT" ? "bg-brick text-white shadow-sm" : "text-slate hover:text-ink"
-                        }`}
-                      >
-                        Absent
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 

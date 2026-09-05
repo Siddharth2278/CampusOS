@@ -1,5 +1,6 @@
 package com.campusos.backend.controller;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.web.bind.annotation.*;
@@ -92,5 +93,10 @@ public List<LeaveResponseDto> getByType(
         @PathVariable LeaveType type) {
 
     return leaveService.getLeavesByType(type);
+}
+
+@GetMapping("/on-leave-student-ids")
+public List<Long> getOnLeaveStudentIds(@RequestParam String date) {
+    return leaveService.getOnLeaveStudentUserIds(LocalDate.parse(date));
 }
 }

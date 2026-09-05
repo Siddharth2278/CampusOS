@@ -43,8 +43,9 @@ public class StudentController {
 
     @PutMapping("/upgrade-semester")
     public String upgradeSemester(
-            @RequestParam Long departmentId,
-            @RequestParam Integer fromSemester) {
+            @RequestBody java.util.Map<String, Object> body) {
+        Long departmentId = Long.valueOf(body.get("departmentId").toString());
+        Integer fromSemester = Integer.valueOf(body.get("fromSemester").toString());
         int count = studentService.upgradeSemester(departmentId, fromSemester);
         return "Upgraded " + count + " students from Semester " + fromSemester + " to Semester " + (fromSemester + 1);
     }

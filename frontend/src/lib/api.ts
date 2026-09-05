@@ -378,6 +378,6 @@ export const api = {
   upgradeSemester: (departmentId: number, fromSemester: number) =>
     apiRequest<string>(`/api/students/upgrade-semester`, {
       method: "PUT",
-      query: { departmentId, fromSemester },
+      body: { departmentId, fromSemester },
     }),
 };

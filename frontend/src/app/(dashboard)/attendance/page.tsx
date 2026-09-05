@@ -185,6 +185,24 @@ function TeacherAttendance({ teacherId }: { teacherId: number }) {
   const canMarkAttendance = hasTimetableSlot && date === new Date().toISOString().slice(0, 10);
 
   useEffect(() => {
+    if (!selectedSubject || !date) return;
+    api.getAttendanceBySubject(selectedSubject.id, date)
+      .then((records) => {
+        const lectureRecords = records.filter((r) => r.lectureNumber === Number(lectureNumber));
+        if (lectureRecords.length > 0) {
+          const loaded: Record<number, "PRESENT" | "ABSENT"> = {};
+          lectureRecords.forEach((r) => { if (r.student?.id) loaded[r.student.id] = r.status; });
+          setStatuses(loaded);
+        } else {
+          const fresh: Record<number, "PRESENT" | "ABSENT"> = {};
+          rosterStudents.forEach((s) => { fresh[s.id] = "PRESENT"; });
+          setStatuses(fresh);
+        }
+      })
+      .catch(() => {});
+  }, [selectedSubject?.id, date, lectureNumber]);
+
+  useEffect(() => {
     const next: Record<number, "PRESENT" | "ABSENT"> = {};
     rosterStudents.forEach((s) => {
       next[s.id] = statuses[s.id] ?? "PRESENT";

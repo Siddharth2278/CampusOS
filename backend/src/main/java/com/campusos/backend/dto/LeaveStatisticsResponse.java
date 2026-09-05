@@ -16,4 +16,6 @@ public class LeaveStatisticsResponse {
     private long rejected;
 
     private long total;
+
+    private long pendingApprovals;
 }

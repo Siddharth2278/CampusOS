@@ -10,6 +10,7 @@ import com.campusos.backend.repository.TeacherRepository;
 import com.campusos.backend.repository.UserRepository;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -37,11 +38,37 @@ public class StudentService {
         return studentRepository.save(student);
     }
 
+    @Transactional(readOnly = true)
     public List<Student> getAllStudents() {
-        // Only show approved students; pending/rejected registrations stay hidden everywhere.
         return studentRepository.findAll().stream()
                 .filter(s -> s.getUser() != null && s.getUser().getStatus() == UserStatus.APPROVED)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<Student> getStudentsByDepartment(Long departmentId) {
+        return studentRepository.findByDepartmentIdAndUser_Status(departmentId, UserStatus.APPROVED);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Student> getStudentsByDepartmentAndSemester(Long departmentId, Integer semester) {
+        return studentRepository.findByDepartmentIdAndSemesterAndUser_Status(departmentId, semester, UserStatus.APPROVED);
+    }
+
+    @Transactional
+    public int upgradeSemester(Long departmentId, Integer fromSemester) {
+        if (fromSemester >= 6) {
+            throw new RuntimeException("Students in the final semester (6) cannot be upgraded.");
+        }
+        List<Student> students = studentRepository.findByDepartmentIdAndSemesterAndUser_Status(
+                departmentId, fromSemester, UserStatus.APPROVED);
+        int count = 0;
+        for (Student s : students) {
+            s.setSemester(fromSemester + 1);
+            studentRepository.save(s);
+            count++;
+        }
+        return count;
     }
 
     // Teacher creates student
@@ -59,20 +86,15 @@ public class StudentService {
             throw new RuntimeException("User information is required");
         }
 
-        // Automatically use teacher's department
         student.setDepartment(teacher.getDepartment());
 
-        // Student account
         User user = student.getUser();
         user.setRole(Role.STUDENT);
-user.setPassword(passwordEncoder.encode(user.getPassword()));
-        // Save User first
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
         User savedUser = userRepository.save(user);
 
-        // Attach saved User
         student.setUser(savedUser);
 
-        // Save Student
         return studentRepository.save(student);
     }
 }

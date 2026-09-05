@@ -252,6 +252,7 @@ export interface LeaveStatistics {
   approved: number;
   rejected: number;
   total: number;
+  pendingApprovals: number;
 }
 
 export type CalendarType =

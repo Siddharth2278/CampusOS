@@ -19,4 +19,12 @@ public interface StudentRepository
     Optional<Student> findByUser(User user);
     long countByUser_Status(UserStatus status);
 
+    List<Student> findByDepartmentIdAndUser_Status(Long departmentId, UserStatus status);
+
+    List<Student> findByDepartmentIdAndSemesterAndUser_Status(Long departmentId, Integer semester, UserStatus status);
+
+    long countByDepartmentIdAndUser_Status(Long departmentId, UserStatus status);
+
+    long countByDepartmentIdAndSemesterAndUser_Status(Long departmentId, Integer semester, UserStatus status);
+
 }

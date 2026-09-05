@@ -172,6 +172,20 @@ export default function LeavesPage() {
         </div>
       ) : null}
 
+      {isApprover && stats && stats.pendingApprovals > 0 ? (
+        <div className="campus-card p-5 bg-gradient-to-br from-gold-tint/40 to-white border border-gold/20">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gold/10 flex items-center justify-center">
+              <span className="text-gold text-lg font-bold">{stats.pendingApprovals}</span>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-ink">Pending Approval{stats.pendingApprovals !== 1 ? "s" : ""} Waiting</p>
+              <p className="text-xs text-ink-soft">Leave requests from your department need your decision.</p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {isApprover && session?.userId ? <ApprovalQueue approverId={session?.userId} /> : null}
 
       {canApply ? (

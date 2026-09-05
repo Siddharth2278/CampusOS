@@ -444,7 +444,7 @@ function FacultyAssignmentsTab({ assignments,teachers,subjects,reload }: { assig
   );
 }
 
-function StudentsTab({ students, canUpgradeSemester, departmentId }: { students: Student[]; canUpgradeSemester: boolean; departmentId?: number }) {
+function StudentsTab({ students, canUpgradeSemester, departmentId, reload }: { students: Student[]; canUpgradeSemester: boolean; departmentId?: number; reload?: () => void }) {
   const [q, setQ] = useState("");
   const [semester, setSemester] = useState("1");
   const [upgradeSem, setUpgradeSem] = useState("1");
@@ -464,6 +464,7 @@ function StudentsTab({ students, canUpgradeSemester, departmentId }: { students:
     try {
       await api.upgradeSemester(departmentId, Number(upgradeSem));
       setMessage(`All Semester ${upgradeSem} students upgraded to Semester ${Number(upgradeSem) + 1}.`);
+      reload?.();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Failed to upgrade semester.");
     } finally {
@@ -596,7 +597,7 @@ export default function DirectoryPage() {
         {session.role === "HOD" && tab === "Subjects" ? <SubjectsTab subjects={mySubjects} departmentId={session.departmentId!} reload={reload}/> : null}
         {session.role === "HOD" && tab === "Teachers" ? <TeachersTab teachers={myTeachers} reload={reload}/> : null}
         {session.role === "HOD" && tab === "Faculty Assignments" ? <FacultyAssignmentsTab assignments={myAssignments} teachers={myTeachers} subjects={mySubjects} reload={reload}/> : null}
-        {session.role === "HOD" && tab === "Students" ? <StudentsTab students={myStudents} canUpgradeSemester={true} departmentId={session.departmentId} /> : null}
+        {session.role === "HOD" && tab === "Students" ? <StudentsTab students={myStudents} canUpgradeSemester={true} departmentId={session.departmentId} reload={reload} /> : null}
       </div>
     </div>
   );

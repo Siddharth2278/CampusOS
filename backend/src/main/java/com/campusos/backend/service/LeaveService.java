@@ -236,11 +236,49 @@ public LeaveStatisticsResponse getMyStatistics(Long userId) {
 
     long total = leaveRequestRepository.countByUserId(userId);
 
+    User user = userRepository.findById(userId).orElse(null);
+    long pendingApprovals = 0;
+    if (user != null) {
+        if (user.getRole() == Role.TEACHER) {
+            Teacher teacher = teacherRepository.findByUser(user).orElse(null);
+            if (teacher != null && Boolean.TRUE.equals(teacher.getClassTeacher())
+                    && teacher.getDepartment() != null && teacher.getClassTeacherSemester() != null) {
+                pendingApprovals = leaveRequestRepository
+                        .findByApproverRoleAndStatusOrderByCreatedAtDesc(ApproverRole.CLASS_TEACHER, LeaveStatus.PENDING)
+                        .stream()
+                        .filter(leave -> {
+                            Student applicant = studentRepository.findByUser(leave.getUser()).orElse(null);
+                            return applicant != null && applicant.getDepartment() != null
+                                    && applicant.getDepartment().getId().equals(teacher.getDepartment().getId())
+                                    && applicant.getSemester() != null
+                                    && applicant.getSemester().equals(teacher.getClassTeacherSemester());
+                        }).count();
+            }
+        } else if (user.getRole() == Role.HOD) {
+            Teacher teacher = teacherRepository.findByUser(user).orElse(null);
+            if (teacher != null && teacher.getDepartment() != null) {
+                Long deptId = teacher.getDepartment().getId();
+                pendingApprovals = leaveRequestRepository
+                        .findByApproverRoleAndStatusOrderByCreatedAtDesc(ApproverRole.HOD, LeaveStatus.PENDING)
+                        .stream()
+                        .filter(leave -> {
+                            Teacher applicant = teacherRepository.findByUser(leave.getUser()).orElse(null);
+                            return applicant != null && applicant.getDepartment() != null
+                                    && applicant.getDepartment().getId().equals(deptId);
+                        }).count();
+            }
+        } else if (user.getRole() == Role.PRINCIPAL) {
+            pendingApprovals = leaveRequestRepository.countByApproverRoleAndStatus(
+                    ApproverRole.PRINCIPAL, LeaveStatus.PENDING);
+        }
+    }
+
     return new LeaveStatisticsResponse(
             pending,
             approved,
             rejected,
-            total);
+            total,
+            pendingApprovals);
 }
 public List<LeaveResponseDto> getPendingForClassTeacher(String email) {
 
@@ -275,11 +313,26 @@ public List<LeaveResponseDto> getPendingForClassTeacher(String email) {
 
 public List<LeaveResponseDto> getPendingForHod(String email) {
 
+    User current = userRepository.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+    Teacher hod = teacherRepository.findByUser(current)
+            .orElseThrow(() -> new RuntimeException("Teacher profile not found"));
+
+    if (hod.getDepartment() == null) return List.of();
+
+    Long deptId = hod.getDepartment().getId();
+
     return leaveRequestRepository
             .findByApproverRoleAndStatusOrderByCreatedAtDesc(
                     ApproverRole.HOD,
                     LeaveStatus.PENDING)
             .stream()
+            .filter(leave -> {
+                Teacher applicant = teacherRepository.findByUser(leave.getUser()).orElse(null);
+                return applicant != null
+                        && applicant.getDepartment() != null
+                        && applicant.getDepartment().getId().equals(deptId);
+            })
             .map(this::mapToResponse)
             .collect(Collectors.toList());
 }
